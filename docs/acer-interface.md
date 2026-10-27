@@ -222,6 +222,20 @@ Nenhum modo mexeu no comportamento das fans (sempre `0x41` Auto) nem nos % do Cu
 - O offset é aplicado pelo **serviço da Acer, no driver NVIDIA**, não pelo firmware (nada mudou no EC). SUPOSIÇÃO forte: via NVAPI. Para o nosso programa, isso é a parte "GPU" da Fase 4 e não depende do WMI da Acer.
 - O Turbo também leva a GPU para P0 mesmo em repouso — SUPOSIÇÃO: efeito do perfil, não do offset.
 
+### Como o overclock da GPU é aplicado (strings do `AcerHardwareService`) — CONFIRMADO por strings
+- Usa a **NVAPI** da NVIDIA: `NvAPI_GPU_GetPstates20` / **`NvAPI_GPU_SetPstates20`** (offset de clock por P-state), `NvAPI_GPU_GetAllClockFrequencies`, `NvAPI_GPU_GetThermalSettings`, `nvapi_QueryInterface`.
+- Tem nomes de offset para cada modo: `GPU Quiet/Balanced/Performance/Turbo/Extreme/Default overclock frequency` e os mesmos com `RAM_`. O `.ini` deste modelo só preenche o Turbo (+100 núcleo / +200 memória); os outros são 0. "Extreme" não aparece no app deste modelo.
+- ⚠️ `SetPstates20` **não faz parte do SDK público** da NVAPI (é acessado via `nvapi_QueryInterface`). Usá-lo no nosso programa exige pesquisar a interface; risco técnico a avaliar na Fase 2. Alternativa pública: travar faixas de clock (`nvidia-smi -lgc/-lmc`), que não é a mesma coisa que offset.
+
+### Limites de potência no Turbo (HWiNFO, `teste_fan2.CSV`, 20:08)
+| | Valor |
+|---|---|
+| CPU PL1 (estático/dinâmico) | 115 W / 115 W |
+| CPU PL2 (estático/dinâmico) | 157 W / 157 W |
+| GPU limite de potência nominal / máximo | 80 W / 140 W |
+| GPU limite térmico | 87 °C |
+Os outros modos ainda não foram medidos → teste A18.
+
 ### Teste A12 — tecla de modos (perto do alto-falante, fora do teclado)
 - O app tem uma opção para o comportamento da tecla (diálogo "Tecla comutação de modo", depois na página Cenário):
   - **Comutação ciclo de modo:** na tomada, Silencioso → Equilibrado → Desempenho → Turbo; na bateria, Equilibrado ↔ Eco.
@@ -407,6 +421,7 @@ O usuário pediu 10/40 (menos barulho). ⚠️ O modo **não saiu do Turbo** (`O
 | A9 | Teclado: trocar cor, efeito e brilho | — | **adiado pelo usuário (2026-11-05)** | confirmar `KBBP` = brilho, `KBLE` = efeito. Roteiro: estático com zonas vermelho/verde/azul/branco e brilho 50; depois Onda variando velocidade e direção; depois outros efeitos e luz desligada |
 | ~~A10~~ | ~~Custom com valores diferentes~~ | — | **feito 2026-11-05 (10/40)** | `C1FR` = CPU, `G1FR` = GPU |
 | ~~A11~~ | ~~`CTML` × HWiNFO~~ | — | **feito 2026-11-05** | `CTML` = temperatura da CPU |
+| A18 | O que cada modo faz: PL1/PL2 da CPU, limites de potência e térmico da GPU, clocks e offsets | HWiNFO gravando log em cada modo (Silencioso, Equilibrado, Desempenho, Turbo; Eco na bateria) | não medido | tabela por modo |
 | A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
