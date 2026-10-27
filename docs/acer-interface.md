@@ -340,6 +340,15 @@ Só leituras: `smi-03-max.json`, `snap-05-max.json`, `sysinfo-02-max.json`.
 | A7 | Get* que viram SMI (3, 9, 15, 25; MiscSetting 2/6/8/9; BatteryControl) | aprovação do usuário | comportamento opaco ao ACPI | formato de FanBehavior, perfil e bateria |
 | A8 | Limite de bateria 80% no Care Center (liga/desliga) | depois do A7 | precisa dos Get de BatteryControl | campos de `GetBatteryHealthControlStatus` |
 | A9 | Teclado: trocar cor, efeito e brilho | — | ainda não testado | confirmar `KBBP` = brilho, `KBLE` = efeito |
+| A10 | Custom com valores bem diferentes (ex.: CPU 30%, GPU 70%) | — | confirmar RPM por fan | `C1FR` cai, `G1FR` sobe |
+| A11 | `CTML` × HWiNFO "CPU Inteira" no mesmo instante | HWiNFO aberto | confirmar sensor | valores próximos |
+| A12 | Tecla Predator/Turbo (física) | na tomada | evento WMI e `TKST` | evento `APGeEvent`? mudança em `OPMS`/`TKST` |
+| A13 | GPU OC do Turbo (+100/+200) | na tomada | aplicado pelo serviço (NVAPI?) | clocks no HWiNFO no Turbo × Balanced |
+| A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
+| A15 | Escritas restantes de fan: `SetGamingFanBehavior` Max (`0x00820009`) e Custom (`0x00C30009`), `SetGamingFanSpeed` | HWiNFO aberto, aprovação por escrita | só Auto foi testado | firmware lê 0x82 / 0xC3; RPM muda |
+| A16 | Escritas de perfil (`SetGamingMiscSetting` 0x0B × `SetGamingProfile`) | aprovação por escrita | qual dos dois o app usa | `OPMS` muda e o DTT/NVIDIA reagem |
+
+**Objetivo do mapeamento (definido pelo usuário em 2026-11-05):** paridade com todas as funções do PredatorSense antes da Fase 2. Recursos fora do PredatorSense (monitoramento extra etc.) ficam para depois. Fora do escopo, por risco: logo de boot da BIOS e tudo que use as classes ⛔.
 
 ## Pendente
 - `GGSI` (SysInfo): índices 4,5,7,8,11–17 vazios.
