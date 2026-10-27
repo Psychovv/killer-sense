@@ -363,6 +363,36 @@ Só leituras: `smi-03-max.json`, `snap-05-max.json`, `sysinfo-02-max.json`.
 | Custom | 3 | `0x00C30009` (SUPOSIÇÃO forte, não testado) | 2 |
 - Max ≈ **6976 RPM** nas duas fans (parece ser o teto). Útil como limite superior de validação da telemetria.
 
+### Testes A10 + A11 — Custom CPU 10% / GPU 40% (2026-11-05 20:08, na tomada)
+Leituras: `snap-11-custom-10-40.json`, `smi-11-custom-10-40.json`, `sysinfo-11-custom-10-40.json`; HWiNFO: `Downloads\teste_fan2.CSV`.
+O usuário pediu 10/40 (menos barulho). ⚠️ O modo **não saiu do Turbo** (`OPMS = 5`), ao contrário do combinado.
+
+| Leitura | Valor | Conclusão |
+|---|---|---|
+| `CPUF` / `GPUF` | 10 / 40 | o app gravou os % pedidos (10% foi aceito) |
+| `GetGamingFanBehavior(0x09)` | `0xC3` | Custom nas duas |
+| `C1FR` | 3846 → 3658 → 3614 | caindo (ainda desacelerando em ~4 s) |
+| `G1FR` | 4918 | estável |
+| `SKTC` | **0**, 56, 56 | ⚠️ **leitura inválida esporádica** (0) |
+
+- **A10 CONFIRMADO:** em Auto a CPU girava mais que a GPU (2090 × 1730); com 10/40 a ordem se inverteu (3614 × 4918). Então `C1FR` = fan da CPU e `G1FR` = fan da GPU.
+- A relação % → RPM **não é linear nem imediata**: 10% ainda dava ~3600 RPM caindo, e 40% dá ~4900 RPM. Pode haver um mínimo imposto pelo EC/Turbo. SUPOSIÇÃO; mapear a curva % → RPM depois, com o modo fixo.
+
+**A11 — `CTML` × HWiNFO (mesmos instantes):**
+| Hora | `CTML` (EC) | HWiNFO "CPU Inteira" (DTS) | HWiNFO "CPU Inteira" (Enhanced) |
+|---|---|---|---|
+| 20:08:29 | 83 | 87 | 83 |
+| 20:08:31 | 70 | 77 | 74 |
+| 20:08:33 | 68 | 69 | 72 |
+- **CONFIRMADO: `CTML` = temperatura da CPU** (mesma tendência, diferença de 0–7 °C; o EC parece amostrar/suavizar diferente).
+- O pico de 83–87 °C às 20:08:29 coincide com o início do nosso script (PowerShell + WMI geram carga). Houve outro pico às 20:08:47 (~80 °C). Com a fan da CPU a 10% em Turbo, a CPU sobe rápido mesmo com carga curta.
+
+**Lições de segurança para a Fase 3 (vindas deste teste):**
+1. Telemetria do EC às vezes devolve **0** (visto em `SKTC`); a dGPU também lê 0 °C quando desliga (Optimus). O failsafe deve tratar 0 e valores fora da faixa como **inválidos**, nunca como "frio".
+2. Decidir por **mais de uma amostra** (mediana/média curta), nunca por uma leitura isolada.
+3. Picos de carga curtos elevam a CPU em 15–20 °C em ~4 s com fan baixa → o mínimo da fan da CPU precisa considerar o **modo térmico** (Turbo exige mínimo maior) e o laço precisa reagir em segundos.
+4. Conferir sempre o modo térmico antes de colocar fan baixa (aqui o Turbo ficou ativo sem ninguém perceber).
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
@@ -373,10 +403,11 @@ Só leituras: `smi-03-max.json`, `snap-05-max.json`, `sysinfo-02-max.json`.
 | A5 | Voltar as fans para **Auto** depois de Custom/Max | — | depende do teste de Custom | o que muda (ou não) ao voltar ao Auto |
 | A6 | `GetGamingSysInfo` (temperaturas e RPM) | **aprovação do usuário** | escreve `EC.PSEE = 1` a cada chamada | RPM real e temperaturas |
 | A7 | Get* que viram SMI (3, 9, 15, 25; MiscSetting 2/6/8/9; BatteryControl) | aprovação do usuário | comportamento opaco ao ACPI | formato de FanBehavior, perfil e bateria |
-| A8 | Limite de bateria 80% no Care Center (liga/desliga) | depois do A7 | precisa dos Get de BatteryControl | campos de `GetBatteryHealthControlStatus` |
-| A9 | Teclado: trocar cor, efeito e brilho | — | ainda não testado | confirmar `KBBP` = brilho, `KBLE` = efeito |
-| A10 | Custom com valores bem diferentes (ex.: CPU 30%, GPU 70%) | — | confirmar RPM por fan | `C1FR` cai, `G1FR` sobe |
-| A11 | `CTML` × HWiNFO "CPU Inteira" no mesmo instante | HWiNFO aberto | confirmar sensor | valores próximos |
+| A8 | Limite de bateria 80% no Care Center (liga/desliga) | — | **adiado pelo usuário (2026-11-05)**; o Get de BatteryControl já funciona | campos de `GetBatteryHealthControlStatus` (hoje `list=03`, `status=00 00 FF 00 00`) |
+| A9 | Teclado: trocar cor, efeito e brilho | — | **adiado pelo usuário (2026-11-05)** | confirmar `KBBP` = brilho, `KBLE` = efeito. Roteiro: estático com zonas vermelho/verde/azul/branco e brilho 50; depois Onda variando velocidade e direção; depois outros efeitos e luz desligada |
+| ~~A10~~ | ~~Custom com valores diferentes~~ | — | **feito 2026-11-05 (10/40)** | `C1FR` = CPU, `G1FR` = GPU |
+| ~~A11~~ | ~~`CTML` × HWiNFO~~ | — | **feito 2026-11-05** | `CTML` = temperatura da CPU |
+| A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
