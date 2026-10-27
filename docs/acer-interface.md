@@ -407,6 +407,55 @@ O usuário pediu 10/40 (menos barulho). ⚠️ O modo **não saiu do Turbo** (`O
 3. Picos de carga curtos elevam a CPU em 15–20 °C em ~4 s com fan baixa → o mínimo da fan da CPU precisa considerar o **modo térmico** (Turbo exige mínimo maior) e o laço precisa reagir em segundos.
 4. Conferir sempre o modo térmico antes de colocar fan baixa (aqui o Turbo ficou ativo sem ninguém perceber).
 
+## Engenharia reversa (aprovada pelo usuário em 2026-11-05, só para interoperar)
+Material extraído/descompilado fica em `re/` (ignorado pelo git). Aqui entra só a descrição da interface.
+
+### App PredatorSense (Electron, `app.asar`) — extraído com `scripts/re/extract-asar.ps1`
+- O app conversa com o serviço por **TCP local `127.0.0.1:51779`** (módulo "ADES"), com comandos JSON de alto nível (`SET_DEVICE_DATA`, `GET_UPDATED_DATA`…). A UI roda em `https://localhost:6888`.
+- Enumerações internas (CONFIRMADO no código, batem com as medições):
+| Enum | Valores |
+|---|---|
+| `OPERATING_MODE` | QUIET=0, DEFAULT=1, **EXTREME=4** ("Desempenho"), TURBO=5, ECO=6 |
+| `FAN_MODE` (app/registro) | Auto=0, Max=1, Custom=2 |
+| `OVERCLOCKING_MODE` | Default=0, Extreme=1, Turbo=2 |
+| `BATTERY_CHARGE_MODE` | OptimizedBatteryCharging=0 (limite ~80%?), FullBatteryCharging=1, AdaptiveBatteryCharging=2 |
+| `KEYBOARD_LED_TYPE` | PERKEY=0, ONE_AREA=1, THREE_AREA=3, FOUR_AREA=4 |
+| `KEYBOARD_ZONE_INDEX` | zone1..zone4 = 0..3 |
+| `LIGHTING_MODE` | GLOBAL=0, AREA=1 |
+| `EFFECT_DIRECTION` | RIGHT=1, LEFT=2, UP=3, DOWN=4, CLOCK=5, ANTICLOCK=6, RIGHTUP=7, LEFTUP=8 |
+| `DTS_SOUND_MODE` | MUSIC=0, MOVIE=1, VOICE=2, STRATEGY=3, RPG=4, SHOOTER=5, CUSTOM_AUDIO=6, AUTOMATIC=10 |
+| `RETURN_CODE` | SUCCESS=0, FAIL_TO_GET_DATA=1, TIMEOUT=2, WRONG_PARAMETERS=3 |
+- **Lista de funções do app (base da paridade):** `OPERATING_MODE`, `FAN_CONTROL`, `OVERCLOCKING_MODE`, `GPU_MODE` (MUX/Optimus? registro `dgpu_mode_capability = 7`), `BATTERY_BOOST`, `USB_CONTROL`, `LCD_OVERDRIVE`, `BACKLIGHT_30S`, `STICKY_KEY`, `WIN_KEY`, `BOOT_SOUND`, `SOUND_MODE` (DTS), `CUSTOM_BOOT_LOGO` (⛔ fora do escopo), efeitos de teclado (`MAG_STATIC/BREATHING/NEON/WAVE/SNAKE/RAINBOW/BLASTING/SPOT/STAR/SLASH/…`, `KEYBOARD_STATIC/DYNAMIC`), light bar / logo (provavelmente não existem neste modelo), cenários (`SWITCH_PROFILE`, `APPLY_PROFILE`), e monitoramento (`CPU_TEMPERATURE`, `CPU_USAGE`, `CPU_FANSPEED`, `GPU_*`, `SYS_TEMPERATURE`, `RAM_USAGE`).
+- O app **não** contém os formatos WMI: eles ficam no `AcerHardwareService` (próximo passo: Ghidra).
+
+### Serviços nativos (Ghidra 12.2 headless; `scripts/re/run-ghidra.ps1` + `scripts/re/ghidra/*.java`)
+Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionados). Abaixo: só o protocolo.
+
+**Arquitetura (CONFIRMADO no código):** app → TCP `127.0.0.1:51779` → `AcerAgentService` (monta os valores) → pipe → `AcerHardwareService` (repassa o UInt64 ao WMI, sem alterar) → `AcerGamingFunction`.
+
+**Modo de operação — `kSvcCmdSetOperationMode` (AcerHardwareService):**
+- `SetGamingMiscSetting(gmInput = (modo << 8) | 0x0B)`, com `modo` = valor do `OPMS` (0, 1, 4, 5, 6). Ex.: Turbo = `0x50B`, Equilibrado = `0x10B`. **Responde o A16: o app usa `SetGamingMiscSetting`, não `SetGamingProfile`.**
+- Logo depois chama `gpu_set_oc_level(n)` com: Silencioso/Eco → 0, Equilibrado → 1, Desempenho → 2, Turbo → 3.
+- Lê `HKLM\SOFTWARE\OEM\AcerAgentService\NV_WhisperMode20_Support` (NVIDIA WhisperMode). Efeito ainda não analisado.
+
+**Overclock da GPU — `nvidiaOC_set_oclevel(n)` (AcerHardwareService):**
+- Escolhe um par (offset núcleo, offset memória) dos 4 níveis (vindos do `.ini`), multiplica por uma constante (MHz → kHz) e aplica via `NvAPI_GPU_GetPstates20` + **`NvAPI_GPU_SetPstates20`** em cada GPU física, até 5 tentativas.
+- É aplicado **em toda troca de modo**: nos modos com offset 0 ele grava 0, ou seja, desfaz o overclock. CONFIRMADO no código.
+- Também tem caminho para GPU AMD (`amd_gpu_lib_function`), sem uso neste modelo.
+
+**Fans — `FAN_CONTROL` (AcerAgentService):**
+- Máscara de fans: bit 0 = CPU; bit `3 + i` = GPU i (GPU1 = 0x08, GPU2 = 0x10).
+- Modo por fan (2 bits): CPU nos bits 0–1; GPU i nos bits `6 + 2i`. **1 = Auto, 2 = Max, 3 = Custom.**
+- `SetGamingFanBehavior(gmInput = (modos << 16) | máscara)`.
+- **Auto / Max** (`mode` 0 / 1 no app): todas as fans com `modo = mode + 1` numa única chamada → CPU+GPU: Auto `0x00410009`, Max `0x00820009`. **CONFIRMADO no código.**
+- **Custom** (`mode` 2): cada fan pode ser Auto ou Custom. O app faz **duas chamadas**: uma com as fans "auto" (modo 1) e outra com as "custom" (modo 3); depois `SetGamingFanSpeed(gmInput = (% << 8) | id)` para cada fan custom, com id 1 = CPU e `4 + i` = GPU i. Sem valor definido, usa 50%.
+- Leitura: `GetGamingFanBehavior(máscara)` → modo da CPU nos bits 8–9 da saída e da GPU i nos bits `14 + 2i` (bate com `0x41`/`0x82`/`0xC3` no byte 1). `GetGamingFanSpeed(id)` → % no byte 1.
+- **Conclusão para o projeto:** controlar cada fan de forma independente (uma em curva própria, outra no Auto do EC) é suportado pelo próprio protocolo da Acer. CONFIRMADO no código; falta só o teste de escrita (A15).
+
+### Tabela DTT (`GDDV`) no ACPI — adiada
+- `\_SB.IETM` na SSDT; `GDDV` devolve um "OEM Exported DataVault" (cabeçalho `gddv`, bloco `REPO` comprimido em LZMA), com 2 variantes: `PLID = 0x1B` e padrão.
+- Decodificar exige descompactar LZMA e interpretar o formato proprietário da Intel. Custo alto; o teste **A18** (log do HWiNFO em cada modo) dá os limites reais com muito menos esforço. Fica como opcional.
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
@@ -426,8 +475,8 @@ O usuário pediu 10/40 (menos barulho). ⚠️ O modo **não saiu do Turbo** (`O
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
-| A15 | Escritas restantes de fan: `SetGamingFanBehavior` Max (`0x00820009`) e Custom (`0x00C30009`), `SetGamingFanSpeed` | HWiNFO aberto, aprovação por escrita | só Auto foi testado | firmware lê 0x82 / 0xC3; RPM muda |
-| A16 | Escritas de perfil (`SetGamingMiscSetting` 0x0B × `SetGamingProfile`) | aprovação por escrita | qual dos dois o app usa | `OPMS` muda e o DTT/NVIDIA reagem |
+| A15 | Escritas restantes de fan: `SetGamingFanBehavior` Max (`0x00820009`) e Custom (`0x00C30009`), `SetGamingFanSpeed((% << 8) \| id)` | HWiNFO aberto, aprovação por escrita | só Auto foi testado; **formatos já confirmados no código da Acer** | firmware lê 0x82 / 0xC3; RPM muda |
+| A16 | Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)` | aprovação por escrita | **o código da Acer confirmou que é esse método** (não `SetGamingProfile`) | `OPMS` muda; PL1/PL2 mudam no HWiNFO |
 
 **Objetivo do mapeamento (definido pelo usuário em 2026-11-05):** paridade com todas as funções do PredatorSense antes da Fase 2. Recursos fora do PredatorSense (monitoramento extra etc.) ficam para depois. Fora do escopo, por risco: logo de boot da BIOS e tudo que use as classes ⛔.
 
