@@ -194,7 +194,42 @@ Estado informado pelo usuário no momento do snapshot 01: modo **Eco/Quiet**, fa
 | KBBacklight `KBBP` | 0 | **0x64 = 100** | ver nota abaixo |
 | LEDColor `LBLT` | 0 | **0x64 = 100** | ver nota abaixo |
 
-- **CONFIRMADO: Eco = 6** (o usuário confirmou que o modo anterior era Eco). Pela hipótese dos projetos Linux, Quiet = 0, Performance = 4, Turbo = 5 — SUPOSIÇÃO até testar.
+- **CONFIRMADO: Eco = 6** (o usuário confirmou que o modo anterior era Eco). O **Eco só aparece no app fora da tomada**. Na tomada o app mostra Silencioso, Equilibrado, Desempenho e Turbo.
+- **CONFIRMADO (2026-11-05, na tomada): Desempenho = 4** (`snap-06-desempenho.json`). O `GetGamingProfile(0)` não muda com o modo.
+- **CONFIRMADO: Turbo (pelo app) = 5** (`snap-07-turbo-app.json`). No Turbo pelo app, as fans **continuam em Auto** (`0x41`, `CurrentFanMode = 0`) e `TKST = 0`.
+
+- **CONFIRMADO: Silencioso = 0** (`snap-10-silencioso.json`). Fans em Auto; brilho do teclado (`KBBP`) continua 100 → só o **Eco** zerou o brilho.
+
+**Tabela final de modos (`OPMS`, lido via `GetGamingMiscSetting(0x0B)`) — CONFIRMADO:**
+| Modo no app | `OPMS` | Disponível |
+|---|---|---|
+| Silencioso | 0 | na tomada |
+| Equilibrado | 1 | sempre |
+| Desempenho | 4 | na tomada |
+| Turbo | 5 | na tomada |
+| Eco | 6 | só na bateria |
+Nenhum modo mexeu no comportamento das fans (sempre `0x41` Auto) nem nos % do Custom. Como trocar o modo (escrita) ainda é o teste A16.
+
+### Teste A13 — overclock da GPU no Turbo (`nvidia-smi`, sem admin)
+| | Silencioso | Turbo (app) |
+|---|---|---|
+| P-state | P4 | **P0** |
+| Clock atual GPU / memória | 1110 / 5920 MHz | 1980 / **8201 MHz** |
+| Clock máx. GPU / memória (nvidia-smi) | 3105 / 8001 MHz | 3105 / 8001 MHz |
+| Registro `Overclock` | `GPU_OC_Support = 1` | igual (não guarda o offset) |
+- **CONFIRMADO: +200 MHz na memória** no Turbo: memória em 8201 MHz, acima do máximo nominal de 8001 MHz. Bate com `RAM_Turbo=200` do `.ini` do modelo.
+- O `clocks.max` do nvidia-smi **não** reflete o offset. O **+100 no núcleo** (`Turbo=100` no `.ini`) não aparece em repouso — SUPOSIÇÃO forte, pelo mesmo mecanismo. Confirmar exigiria carga na GPU (fora do escopo agora).
+- O offset é aplicado pelo **serviço da Acer, no driver NVIDIA**, não pelo firmware (nada mudou no EC). SUPOSIÇÃO forte: via NVAPI. Para o nosso programa, isso é a parte "GPU" da Fase 4 e não depende do WMI da Acer.
+- O Turbo também leva a GPU para P0 mesmo em repouso — SUPOSIÇÃO: efeito do perfil, não do offset.
+
+### Teste A12 — tecla de modos (perto do alto-falante, fora do teclado)
+- O app tem uma opção para o comportamento da tecla (diálogo "Tecla comutação de modo", depois na página Cenário):
+  - **Comutação ciclo de modo:** na tomada, Silencioso → Equilibrado → Desempenho → Turbo; na bateria, Equilibrado ↔ Eco.
+  - **Ligar/deslig Turbo:** cada toque liga ou desliga o Turbo (só na tomada). É a opção atual.
+- Com **Ligar/deslig Turbo**: a tecla alternou Equilibrado ↔ Turbo. Com o app mostrando Turbo, o EC leu `OPMS = 5`, fans em Auto, `TKST = 0`: **idêntico ao Turbo pelo app** (`snap-09-turbo-tecla.json` × `snap-07`). CONFIRMADO.
+- Conclusão: a tecla **não** muda o modo sozinha no firmware. O EC/BIOS avisa o software, e o **serviço da Acer** aplica o modo. Strings do serviço reforçam: `SendTurboKeyPressedEvent`, `kAdmAgtTurboKeyPressed`. SUPOSIÇÃO forte: o aviso chega como evento WMI (`AcerGenericEvent` / `APGeEvent`). **O nosso programa vai precisar escutar esse evento** e aplicar o modo ele mesmo.
+- Uma leitura (snapshot 08) pegou `OPMS = 1` com o app em Equilibrado: o toque anterior não levou ao Turbo. Não há indício de problema; foi descartada.
+- Pendente, **baixa prioridade** (decisão do usuário em 2026-11-05): ver se a opção de comportamento da tecla fica no EC (`FMKY`?) e capturar o evento WMI da tecla. Fica para depois dos outros testes. Pela hipótese dos projetos Linux, Quiet = 0, Performance = 4, Turbo = 5 — SUPOSIÇÃO até testar.
 - `KBBP`/`LBLT` foram para 100. A luz parecia apagada só porque o backlight desliga sozinho após inatividade; ao digitar, ela **acendeu** (informado pelo usuário). Então `KBBP` = **brilho do teclado (0–100)** continua sendo a melhor hipótese (SUPOSIÇÃO forte), e o modo **Eco zera o brilho** e o Balanced o restaura para 100 (SUPOSIÇÃO forte). `LBLT` provavelmente é o brilho da light bar (SUPOSIÇÃO).
 - O estado "aceso/apagado por inatividade" não aparece em nenhum campo lido até agora.
 - Performance/Turbo não podem ser testados na bateria (o PredatorSense bloqueia sem o carregador), o que bate com `AC_Support = 9` e com a checagem de "ACStatus" vista nas strings do serviço.
@@ -331,9 +366,9 @@ Só leituras: `smi-03-max.json`, `snap-05-max.json`, `sysinfo-02-max.json`.
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
-| A1 | Modo **Performance** | notebook **na tomada** | PredatorSense bloqueia na bateria | `OPMS = 4`? (SUPOSIÇÃO) |
-| A2 | Modo **Turbo** (pelo app e pela tecla Predator) | na tomada | idem | `OPMS = 5`? e mudança em `TKST`? |
-| A3 | Modo **Quiet**, se o app oferecer | — | ainda não testado | `OPMS = 0`? |
+| ~~A1~~ | ~~Desempenho~~ | — | **feito 2026-11-05** | `OPMS = 4` |
+| ~~A2~~ | ~~Turbo pelo app~~ | — | **feito 2026-11-05** | `OPMS = 5` |
+| ~~A3~~ | ~~Silencioso~~ | — | **feito 2026-11-05** | `OPMS = 0` |
 | ~~A4~~ | ~~Fans no **Max**~~ | — | **feito em 2026-11-05 19:17** | Max = 2; RPM 6976 |
 | A5 | Voltar as fans para **Auto** depois de Custom/Max | — | depende do teste de Custom | o que muda (ou não) ao voltar ao Auto |
 | A6 | `GetGamingSysInfo` (temperaturas e RPM) | **aprovação do usuário** | escreve `EC.PSEE = 1` a cada chamada | RPM real e temperaturas |
@@ -342,8 +377,8 @@ Só leituras: `smi-03-max.json`, `snap-05-max.json`, `sysinfo-02-max.json`.
 | A9 | Teclado: trocar cor, efeito e brilho | — | ainda não testado | confirmar `KBBP` = brilho, `KBLE` = efeito |
 | A10 | Custom com valores bem diferentes (ex.: CPU 30%, GPU 70%) | — | confirmar RPM por fan | `C1FR` cai, `G1FR` sobe |
 | A11 | `CTML` × HWiNFO "CPU Inteira" no mesmo instante | HWiNFO aberto | confirmar sensor | valores próximos |
-| A12 | Tecla Predator/Turbo (física) | na tomada | evento WMI e `TKST` | evento `APGeEvent`? mudança em `OPMS`/`TKST` |
-| A13 | GPU OC do Turbo (+100/+200) | na tomada | aplicado pelo serviço (NVAPI?) | clocks no HWiNFO no Turbo × Balanced |
+| A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
+| ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
 | A15 | Escritas restantes de fan: `SetGamingFanBehavior` Max (`0x00820009`) e Custom (`0x00C30009`), `SetGamingFanSpeed` | HWiNFO aberto, aprovação por escrita | só Auto foi testado | firmware lê 0x82 / 0xC3; RPM muda |
 | A16 | Escritas de perfil (`SetGamingMiscSetting` 0x0B × `SetGamingProfile`) | aprovação por escrita | qual dos dois o app usa | `OPMS` muda e o DTT/NVIDIA reagem |
