@@ -452,6 +452,35 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 - Leitura: `GetGamingFanBehavior(máscara)` → modo da CPU nos bits 8–9 da saída e da GPU i nos bits `14 + 2i` (bate com `0x41`/`0x82`/`0xC3` no byte 1). `GetGamingFanSpeed(id)` → % no byte 1.
 - **Conclusão para o projeto:** controlar cada fan de forma independente (uma em curva própria, outra no Auto do EC) é suportado pelo próprio protocolo da Acer. CONFIRMADO no código; falta só o teste de escrita (A15).
 
+**Limite de bateria (~80%) — Acer Care Center (`AcerCCAgent.exe`, módulo `i3d::AcerWMI`):**
+- Dois caminhos: "AcerHID2025" (EC por HID, usado só quando `EC_HID_Support = 1`; aqui é 0) e **WMI `BatteryControl`** (o deste modelo).
+- `SetBatteryHealthControl(uBatteryNo, uFunctionMask, uFunctionStatus, uReservedIn[5])`: o código passa os valores direto (`BatteryIndex`, `BatteryFunctionMask`, `bool` liga/desliga), reservado zerado.
+- `GetBatteryHealthControlStatus(uBatteryNo, uFunctionQuery = 1, uReserved[2])`: `uFunctionList` é uma máscara de funções suportadas, lida como **bit0, bit1, bit2**; `uFunctionStatus[0..2] == 1` = função ligada.
+- Leitura deste notebook: `list = 03` → bit0 e bit1 suportados; `status = 00 00 FF` → as duas desligadas.
+- SUPOSIÇÃO forte: **bit0/máscara 1 = "Battery Boundary" (limite ~80%)**, bit1/máscara 2 = calibração. Então ligar o limite = `SetBatteryHealthControl(1, 1, 1)`, desligar = `(1, 1, 0)`. Confirmar com o teste A8 (ligar no Care Center e ver `status[0]` virar 1).
+- O limite via WMI é só liga/desliga (sem escolher o %). O caminho HID 2025 tem `Get/SetBatteryBoundary(bool, min, max)`, mas não se aplica a este modelo.
+
+**Teclado (`AcerECKeyboardController.dll`, modo estático):**
+- Cor por zona: `SetGamingRgbKb(gmInput = máscara_zona | R << 8 | G << 16 | B << 24)`, uma chamada por zona (máscaras 1, 2, 4, 8), com 30 ms entre elas. Bate com o ACPI (`KBnR/G/B`).
+- Efeito/brilho: `SetGamingKBBacklight(UInt8[])` com `[0]` efeito, `[1]` velocidade, `[2]` **brilho**, `[4]` direção, `[5..7]` RGB, `[8]` `KLES`, `[9]` alvo (1 = teclado, 2 = light bar). No estático o app manda efeito 0, velocidade 0, brilho N, `KLES = 3`, alvo 1, e depois as cores por zona.
+- **Liga/desliga por zona**: `SetGamingLED(UInt8[])` com `[0] = 8` e `[5]` = máscara das zonas acesas (bit0 = zona 1 … bit3 = zona 4). Grava `EC.KBST`. Explica as leituras anteriores: `KBST = 7` (zonas 1–3) e `0x0F` (as 4). CONFIRMADO no código + ACPI.
+- O tamanho do buffer muda conforme a versão da tabela SMBIOS tipo 172 (8, 12 ou 16 bytes).
+- Os números de cada efeito animado (onda, neon…) não estão nesta DLL. Descobrir lendo `KBLE` no teste A9.
+
+**Funções extras do PredatorSense:**
+| Função | Mecanismo (CONFIRMADO no código) |
+|---|---|
+| Sticky key | só Windows: `SystemParametersInfo(SPI_GET/SETSTICKYKEYS)`, liga/desliga as flags 0x5 |
+| Trava da tecla Windows | **HID feature report** de 8 bytes para o teclado: `03 xx 00 00 00 00 00 cs`, `xx = 0` (tecla liberada) ou `3` (travada), `cs = 0xFF − soma(bytes 0..6)` |
+| Luz do teclado desliga após 30 s | HID feature report: `30 01 xx 00 00 00 00 cs`, `xx = 1` liga, `0` desliga, mesmo checksum |
+| Modo de som DTS | DLL do driver de áudio (`DtsApoAppWin32DLL.dll`, `create_DtsApoInterface`). Fora do firmware |
+| LCD overdrive | suporte lido de `GetGamingProfile(0)`. O comando de escrita ainda não foi localizado |
+| GPU dedicada (MUX) | suporte lido de `GetGamingMiscSetting(9)` (via SMI) e do registro `discrete_gpu_support` / `dgpu_mode_capability` |
+| Tecla Turbo | o serviço recebe o evento e reenvia ao app (`kAgtTurboKeyPressed`) |
+| Battery Boost | só lido via "EcHID" (não se aplica: `EC_HID_Support = 0`) |
+| Logo de boot da BIOS | ⛔ fora do escopo (grava arquivos para a BIOS) |
+- VID/PID do teclado HID: vem da configuração do serviço; não extraído. SUPOSIÇÃO: dá para achar pelo Gerenciador de Dispositivos.
+
 ### Tabela DTT (`GDDV`) no ACPI — adiada
 - `\_SB.IETM` na SSDT; `GDDV` devolve um "OEM Exported DataVault" (cabeçalho `gddv`, bloco `REPO` comprimido em LZMA), com 2 variantes: `PLID = 0x1B` e padrão.
 - Decodificar exige descompactar LZMA e interpretar o formato proprietário da Intel. Custo alto; o teste **A18** (log do HWiNFO em cada modo) dá os limites reais com muito menos esforço. Fica como opcional.
