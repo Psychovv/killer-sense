@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>KillerSense.HwTests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KillerSense.Core\KillerSense.Core.csproj" />
+    <ProjectReference Include="..\..\src\KillerSense.Firmware\KillerSense.Firmware.csproj" />
+  </ItemGroup>
+</Project>

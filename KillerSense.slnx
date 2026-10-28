@@ -4,6 +4,9 @@
     <Project Path="src/KillerSense.Firmware/KillerSense.Firmware.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/KillerSense.HwTests/KillerSense.HwTests.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="tests/KillerSense.Tests/KillerSense.Tests.csproj" />
   </Folder>
 </Solution>
