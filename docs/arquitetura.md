@@ -245,4 +245,4 @@ Se uma meta não for atingida, é tratado como defeito.
 - Comportamento "não brigar" com o PredatorSense (§7).
 - Metas de leveza (§12.6).
 
-**Pendente:** escolher o estilo no protótipo (§12.5).
+**Estilo visual escolhido (2026-11-05): B · Grafite** — escuro neutro, destaque violeta, sem brilho, cantos menores (§12.5). Os tokens do protótipo (`body.b` em `docs/prototipo/index.html`) são o ponto de partida do `KillerSense.UI.Theme`.
