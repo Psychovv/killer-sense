@@ -4,3 +4,9 @@
 /recon-out/
 # Engenharia reversa (extraido/descompilado de binarios da Acer): nunca versionar
 /re/
+# Build .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/
