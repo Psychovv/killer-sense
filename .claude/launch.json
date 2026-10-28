@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "prototipo",
+      "runtimeExecutable": "powershell.exe",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/dev/serve-static.ps1", "-Root", "docs/prototipo", "-Port", "5173"],
+      "port": 5173
+    }
+  ]
+}
