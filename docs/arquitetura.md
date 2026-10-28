@@ -9,7 +9,7 @@ Base: tudo o que está em [acer-interface.md](acer-interface.md). Onde algo aind
 | D2 | **Sem driver de baixo nível** por enquanto (potência da CPU, MSR etc.). Entra numa fase posterior. |
 | D3 | Ordem: fans → modos → bateria → teclado/extras → GPU. Paridade com o PredatorSense primeiro; monitoramento extra depois. |
 
-## 2. Linguagem e plataforma — **C# / .NET 10 (LTS) + Avalonia 11** (interface escolhida pelo usuário em 2026-11-05)
+## 2. Linguagem e plataforma — **C# / .NET 10 (LTS) + Avalonia 12** (interface escolhida pelo usuário em 2026-11-05)
 Motivos do C#/.NET:
 - **WMI nativo** (`Microsoft.Management.Infrastructure`, o mesmo CIM que usamos no PowerShell em todos os testes).
 - **Serviço do Windows** de primeira classe (`Microsoft.Extensions.Hosting.WindowsServices`): eventos de parada, desligamento (pre-shutdown), suspensão e retomada.
@@ -237,7 +237,30 @@ Se uma meta não for atingida, é tratado como defeito.
 | Fase 4 | modos (A16, A18) → bateria (A8) → iluminação (A9) → teclado/sistema → GPU | 3 |
 | Depois | monitoramento extra; driver de baixo nível (potência da CPU) | decisão futura |
 
-## 16. O que a Fase 2 precisa de você
+## 16. Ambiente e dependências (Fase 3.0)
+- **SDK .NET 10.0.403** (runtime 10.0.14), zip portátil da Microsoft em `tools/dotnet` (SHA-512 conferido, assinatura Microsoft). Instalado em 2026-11-05.
+- Pacotes NuGet propostos (versões estáveis mais recentes em 2026-11-05; aguardando aprovação):
+
+| Pacote | Versão | Autor | Usado em | Para quê |
+|---|---|---|---|---|
+| Avalonia | 12.1.5 | Avalonia Team | Tray, App, UI.Theme | interface |
+| Avalonia.Desktop | 12.1.5 | Avalonia Team | Tray, App | janela e bandeja no Windows |
+| Avalonia.Themes.Fluent | 12.1.5 | Avalonia Team | App | base dos controles (o tema Grafite fica por cima) |
+| CommunityToolkit.Mvvm | 8.4.2 | Microsoft | App, Tray | MVVM sem reflexão (compatível com Native AOT) |
+| Microsoft.Management.Infrastructure | 3.0.0 | Microsoft | Firmware | WMI/CIM (o mesmo do PowerShell) |
+| Microsoft.Extensions.Hosting | 10.0.14 | Microsoft | Service, Watchdog | ciclo de vida do serviço |
+| Microsoft.Extensions.Hosting.WindowsServices | 10.0.14 | Microsoft | Service, Watchdog | integração com o Gerenciador de Serviços |
+| Serilog.Extensions.Hosting | 10.0.0 | Serilog | Service, Watchdog | logs |
+| Serilog.Sinks.File | 7.0.0 | Serilog | Service, Watchdog | log em arquivo com rotação |
+| xunit.v3 | 4.0.2 | xUnit | Tests | testes |
+| xunit.runner.visualstudio | 4.0.1 | xUnit | Tests | rodar testes pelo `dotnet test` |
+| Microsoft.NET.Test.Sdk | 18.11.0 | Microsoft | Tests | infraestrutura de testes |
+
+- **Sem biblioteca de gráficos**: mostradores, gráfico de linha e editor de curva serão controles próprios desenhados direto no Avalonia (como no protótipo). Menos dependências, mais leve e com o visual exato do tema.
+- **Sem pacote** para NVML, NVAPI e HID: chamadas diretas às DLLs do sistema (`nvml.dll`, `hid.dll`) via `LibraryImport`.
+- As versões ficam fixas num arquivo central (`Directory.Packages.props`) e com `packages.lock.json`, para o build ser reproduzível.
+
+## 17. O que a Fase 2 precisa de você
 **Aprovado pelo usuário em 2026-11-05:**
 - C#/.NET 10 + Avalonia.
 - Watchdog como serviço separado.
