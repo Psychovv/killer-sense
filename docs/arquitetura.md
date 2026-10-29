@@ -104,7 +104,9 @@ Quando a dGPU dorme, o NVML não lê temperatura (o HWiNFO mostrou 0 °C). Nesse
 | Turbo | 45% | 45% |
 Motivo: no teste de 10/40 em Turbo a CPU subiu de ~65 °C para 83–87 °C em ~4 s com carga curta.
 
-#### 5.4.1 Revisão proposta depois do A17 (AGUARDANDO DECISÃO)
+> **Substituído por §5.4.1** (aprovado pelo usuário em 2026-11-05). A tabela acima fica só como histórico.
+
+#### 5.4.1 Revisão depois do A17 — APROVADA (2026-11-05)
 O A17 mostrou que o Custom nunca gira abaixo de ~2000 rpm e que 20% já dá ~3150 rpm, enquanto o Auto do EC em repouso fica em ~2040 rpm. Com os pisos acima, o killer-sense seria **mais barulhento que o PredatorSense em repouso**. Proposta:
 
 1. **Modo híbrido por fan ("Curva")**: abaixo de uma temperatura de entrada a fan fica no **Auto do EC** (silencioso e com a proteção do próprio EC); acima dela o serviço assume com a curva.
