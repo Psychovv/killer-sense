@@ -500,6 +500,21 @@ Ferramenta: `tests/KillerSense.HwTests` (`custom --cpu 40 --gpu 40 --hold 20`), 
 - Logo após voltar ao Auto, o RPM ainda estava alto (a fan desacelera aos poucos) — esperado.
 - Antes do teste, o EC guardava CPU 10% / GPU 40% (do teste A10).
 
+### Teste A17 — curva % → RPM (2026-11-05 22:04–22:05, Equilibrado, na tomada, repouso, CPU 59–65 °C)
+Ferramenta: `HwTests custom --cpu N --gpu N --hold 15`, uma execução por valor, volta ao Auto entre elas. Saída: `recon-out/a17-curve.txt`.
+| % Custom | Fan CPU (rpm) | Fan GPU (rpm) |
+|---|---|---|
+| Auto do EC, repouso | ~2040 | ~1750 |
+| 20 | 3157 | 2857 |
+| 30 | 3703 | 3409 |
+| 40 | 4166 | 3896 |
+| 50 | 4615 | 4411 |
+| 60 | 5084 | 4838 |
+| Max (A4) | 6976 | 6976 |
+- **CONFIRMADO:** entre 20 e 60% a relação é quase linear — CPU ≈ 2200 + 48 × %, GPU ≈ 1870 + 50 × % (rpm). Extrapolando, 0% ≈ 2200 / 1870 rpm: **o Custom nunca fica abaixo de ~2000 rpm**, praticamente o mesmo do Auto em repouso.
+- A GPU estabiliza um pouco mais devagar (até ~3 s).
+- **Consequência:** os pisos aprovados (20/25/35/45%) equivalem a ~3150–4350 rpm, **bem mais barulhentos que o Auto em repouso (~2040)**. Proposta de ajuste em docs/arquitetura.md §5.4 (aguardando decisão).
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
