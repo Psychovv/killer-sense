@@ -485,6 +485,21 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 - `\_SB.IETM` na SSDT; `GDDV` devolve um "OEM Exported DataVault" (cabeçalho `gddv`, bloco `REPO` comprimido em LZMA), com 2 variantes: `PLID = 0x1B` e padrão.
 - Decodificar exige descompactar LZMA e interpretar o formato proprietário da Intel. Custo alto; o teste **A18** (log do HWiNFO em cada modo) dá os limites reais com muito menos esforço. Fica como opcional.
 
+### Teste A15 — escritas de fan pela nossa ferramenta (2026-11-05 22:02, Equilibrado, na tomada, repouso)
+Ferramenta: `tests/KillerSense.HwTests` (`custom --cpu 40 --gpu 40 --hold 20`), usando o mesmo `AcerWmiFirmware` do projeto. Saída em `recon-out/a15-custom-40-40.txt`.
+| Escrita | Valor | Resultado |
+|---|---|---|
+| `SetGamingFanSpeed` CPU 40% | `0x2801` | status 0; `GetGamingFanSpeed(1)` = 40 |
+| `SetGamingFanSpeed` GPU 40% | `0x2804` | status 0; `GetGamingFanSpeed(4)` = 40 |
+| `SetGamingFanBehavior` Custom | `0x00C30009` | status 0; modo lido = Custom nas duas |
+| `SetGamingFanBehavior` Auto | `0x00410009` | status 0; modo lido = Auto nas duas |
+
+- **CONFIRMADO no hardware:** formato de `SetGamingFanSpeed` (`(% << 8) | id`, CPU = 1, GPU = 4) e de `SetGamingFanBehavior` Custom (`0x00C30009`). Toda a cadeia `AcerWmiFirmware` → WMI → firmware funciona.
+- RPM com 40%: subiu em ~2 s e estabilizou em **CPU ~4166 rpm, GPU ~3896 rpm** (Auto em repouso: ~2054 / ~1754). A CPU caiu de 68 para 64 °C em 20 s.
+- ⚠️ **A relação % → RPM não é linear e começa alta**: 40% já gira ~60% do máximo (6976). No teste de 10/40 (A10), 10% ainda dava ~3600 rpm. Consequência: **em repouso, o Auto do EC é mais silencioso que qualquer % baixo do Custom**. Os pisos de segurança (20–45%) provavelmente fazem a fan girar mais do que o Auto em repouso. Revisar no A17.
+- Logo após voltar ao Auto, o RPM ainda estava alto (a fan desacelera aos poucos) — esperado.
+- Antes do teste, o EC guardava CPU 10% / GPU 40% (do teste A10).
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
@@ -504,7 +519,7 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
-| A15 | Escritas restantes de fan: `SetGamingFanBehavior` Max (`0x00820009`) e Custom (`0x00C30009`), `SetGamingFanSpeed((% << 8) \| id)` | HWiNFO aberto, aprovação por escrita | só Auto foi testado; **formatos já confirmados no código da Acer** | firmware lê 0x82 / 0xC3; RPM muda |
+| ~~A15~~ | ~~Escritas de fan Custom e FanSpeed~~ | — | **feito 2026-11-05** (Max não testado: o usuário não quer fan a 100%) | Custom 40/40 → ~4166 / ~3896 rpm |
 | A16 | Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)` | aprovação por escrita | **o código da Acer confirmou que é esse método** (não `SetGamingProfile`) | `OPMS` muda; PL1/PL2 mudam no HWiNFO |
 
 **Objetivo do mapeamento (definido pelo usuário em 2026-11-05):** paridade com todas as funções do PredatorSense antes da Fase 2. Recursos fora do PredatorSense (monitoramento extra etc.) ficam para depois. Fora do escopo, por risco: logo de boot da BIOS e tudo que use as classes ⛔.
