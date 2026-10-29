@@ -104,6 +104,21 @@ Quando a dGPU dorme, o NVML não lê temperatura (o HWiNFO mostrou 0 °C). Nesse
 | Turbo | 45% | 45% |
 Motivo: no teste de 10/40 em Turbo a CPU subiu de ~65 °C para 83–87 °C em ~4 s com carga curta.
 
+#### 5.4.1 Revisão proposta depois do A17 (AGUARDANDO DECISÃO)
+O A17 mostrou que o Custom nunca gira abaixo de ~2000 rpm e que 20% já dá ~3150 rpm, enquanto o Auto do EC em repouso fica em ~2040 rpm. Com os pisos acima, o killer-sense seria **mais barulhento que o PredatorSense em repouso**. Proposta:
+
+1. **Modo híbrido por fan ("Curva")**: abaixo de uma temperatura de entrada a fan fica no **Auto do EC** (silencioso e com a proteção do próprio EC); acima dela o serviço assume com a curva.
+   - Entrada padrão: CPU **60 °C**, GPU **55 °C** (ajustável por perfil).
+   - Volta ao Auto quando a temperatura cair **8 °C abaixo** da entrada **e** a curva já estiver no piso (evita ficar trocando de modo).
+2. **Novos pisos (só valem enquanto a fan está em Custom)**:
+   | Modo | Piso | RPM aprox. CPU / GPU |
+   |---|---|---|
+   | Silencioso / Eco / Equilibrado | 0% | ~2200 / ~1870 |
+   | Desempenho | 15% | ~2900 / ~2600 |
+   | Turbo | 30% | ~3700 / ~3400 |
+3. **Sem mudança** na emergência (95/87 °C → Max), nas leituras inválidas (→ Auto), na rampa de subida (+15%/s) nem no watchdog.
+4. A interface mostra o RPM esperado de cada ponto da curva usando a tabela do A17.
+
 ## 6. Segurança (requisito obrigatório da Fase 3)
 ### 6.1 Estado seguro = Auto do EC
 `SetGamingFanBehavior(0x00410009)`, a única escrita já testada no hardware. O Guardião aplica o estado seguro e confirma por leitura.
