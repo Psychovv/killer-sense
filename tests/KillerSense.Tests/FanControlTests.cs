@@ -35,12 +35,17 @@ public class FanCurveControllerTests
         new(FanCurve.Create([new(40, 0), new(60, 50), new(80, 100)]), tuning ?? new FanTuning());
 
     [Theory]
-    [InlineData(OperatingMode.Quiet, 20)]
-    [InlineData(OperatingMode.Balanced, 25)]
-    [InlineData(OperatingMode.Performance, 35)]
-    [InlineData(OperatingMode.Turbo, 45)]
+    [InlineData(OperatingMode.Quiet, 0)]
+    [InlineData(OperatingMode.Eco, 0)]
+    [InlineData(OperatingMode.Balanced, 0)]
+    [InlineData(OperatingMode.Performance, 15)]
+    [InlineData(OperatingMode.Turbo, 30)]
     public void Nunca_fica_abaixo_do_piso_do_modo(OperatingMode mode, int floor) =>
         Assert.Equal(floor, Make().Step(30, mode, 1));
+
+    [Fact]
+    public void Piso_do_usuario_prevalece_se_for_maior() =>
+        Assert.Equal(20, Make(new FanTuning { MinPercent = 20 }).Step(30, OperatingMode.Balanced, 1));
 
     [Fact]
     public void Primeiro_ciclo_vai_direto_ao_alvo() => Assert.Equal(50, Make().Step(60, OperatingMode.Balanced, 1));
@@ -49,9 +54,9 @@ public class FanCurveControllerTests
     public void Sobe_limitado_pela_rampa_de_subida()
     {
         var c = Make();
-        Assert.Equal(25, c.Step(40, OperatingMode.Balanced, 1));
-        Assert.Equal(40, c.Step(80, OperatingMode.Balanced, 1)); // 25 + 15
-        Assert.Equal(55, c.Step(80, OperatingMode.Balanced, 1));
+        Assert.Equal(0, c.Step(40, OperatingMode.Balanced, 1));
+        Assert.Equal(15, c.Step(80, OperatingMode.Balanced, 1)); // 0 + 15
+        Assert.Equal(30, c.Step(80, OperatingMode.Balanced, 1));
     }
 
     [Fact]
@@ -75,8 +80,8 @@ public class FanCurveControllerTests
     public void Troca_para_turbo_aplica_o_piso_na_hora_mesmo_com_rampa()
     {
         var c = Make();
-        Assert.Equal(25, c.Step(30, OperatingMode.Balanced, 1));
-        Assert.Equal(45, c.Step(30, OperatingMode.Turbo, 1));
+        Assert.Equal(0, c.Step(30, OperatingMode.Balanced, 1));
+        Assert.Equal(30, c.Step(30, OperatingMode.Turbo, 1)); // rampa daria 15; o piso força 30
     }
 
     [Fact]
