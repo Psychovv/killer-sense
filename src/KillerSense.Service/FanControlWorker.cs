@@ -13,14 +13,17 @@ public sealed record HeartbeatOptions(string Name);
 public sealed partial class FanControlWorker : BackgroundService
 {
     private readonly FanControlEngine _engine;
+    private readonly IGpuSensor _gpu;
+    private readonly GpuTemperatureFeed _gpuFeed = new();
     private readonly HeartbeatOptions _heartbeat;
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
-    private EngineState? _lastState;
+    private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
 
-    public FanControlWorker(FanControlEngine engine, HeartbeatOptions heartbeat, ILogger<FanControlWorker> log)
+    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, ILogger<FanControlWorker> log)
     {
         _engine = engine;
+        _gpu = gpu;
         _heartbeat = heartbeat;
         _log = log;
     }
@@ -52,17 +55,19 @@ public sealed partial class FanControlWorker : BackgroundService
             {
                 var dt = sw.Elapsed.TotalSeconds;
                 sw.Restart();
+                var gpuTemp = _gpuFeed.Update(_gpu.Read()); // não acorda a GPU desligada
                 EngineSnapshot snap;
                 lock (_gate)
                 {
-                    snap = _engine.Tick(dt);
+                    snap = _engine.Tick(dt, gpuTemp);
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
-                if (snap.State != _lastState)
+                var key = (snap.State, snap.Cpu.Mode, snap.Gpu.Mode);
+                if (key != _lastLogged)
                 {
-                    LogState(_log, snap.State, snap.CpuTemperature, snap.Cpu.Mode, snap.Cpu.Percent, snap.Gpu.Mode, snap.Gpu.Percent, snap.Message);
-                    _lastState = snap.State;
+                    LogState(_log, snap.State, snap.CpuTemperature, snap.GpuTemperature, snap.Cpu.Mode, snap.Cpu.Percent, snap.Gpu.Mode, snap.Gpu.Percent, snap.Message);
+                    _lastLogged = key;
                 }
             }
         }
@@ -107,6 +112,6 @@ public sealed partial class FanControlWorker : BackgroundService
     [LoggerMessage(Level = LogLevel.Critical, Message = "FALHA ao aplicar o Auto do EC ({Reason}).")]
     private static partial void LogAutoFailed(ILogger logger, Exception ex, string reason);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Estado {State}: CPU {Temp} °C | fan CPU {CpuMode} {CpuPct}% | fan GPU {GpuMode} {GpuPct}% | {Message}")]
-    private static partial void LogState(ILogger logger, EngineState state, double? temp, FanMode cpuMode, int? cpuPct, FanMode gpuMode, int? gpuPct, string? message);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Estado {State}: CPU {CpuTemp} °C, GPU {GpuTemp} °C | fan CPU {CpuMode} {CpuPct}% | fan GPU {GpuMode} {GpuPct}% | {Message}")]
+    private static partial void LogState(ILogger logger, EngineState state, double? cpuTemp, double? gpuTemp, FanMode cpuMode, int? cpuPct, FanMode gpuMode, int? gpuPct, string? message);
 }

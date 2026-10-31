@@ -2,6 +2,9 @@
   <Folder Name="/src/">
     <Project Path="src/KillerSense.Core/KillerSense.Core.csproj" />
     <Project Path="src/KillerSense.Firmware/KillerSense.Firmware.csproj" />
+    <Project Path="src/KillerSense.Gpu/KillerSense.Gpu.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/KillerSense.Service/KillerSense.Service.csproj">
       <Platform Project="x64" />
     </Project>

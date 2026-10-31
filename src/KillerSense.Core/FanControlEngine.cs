@@ -41,6 +41,7 @@ public sealed record FanProfile(FanCurve CpuCurve, FanCurve GpuCurve, FanTuning 
 public sealed record EngineSnapshot(
     EngineState State,
     double? CpuTemperature,
+    double? GpuTemperature,
     OperatingMode? OperatingMode,
     FanDecision Cpu,
     FanDecision Gpu,
@@ -64,6 +65,7 @@ public sealed class FanControlEngine
     private readonly Dictionary<Fan, FanMode> _applied = new() { [Fan.Cpu] = FanMode.Auto, [Fan.Gpu] = FanMode.Auto };
     private readonly Dictionary<Fan, int?> _appliedPercent = new() { [Fan.Cpu] = null, [Fan.Gpu] = null };
     private OperatingMode? _lastMode;
+    private double? _lastGpuTemperature;
     private readonly Queue<double> _overrideTimes = new();
     private bool _paused;
     private EngineState? _pauseReason;
@@ -123,6 +125,7 @@ public sealed class FanControlEngine
     /// <param name="gpuTemperature">Temperatura válida da GPU (NVML); null = sem leitura ⇒ fan da GPU no Auto do EC.</param>
     public EngineSnapshot Tick(double elapsedSeconds, double? gpuTemperature = null)
     {
+        _lastGpuTemperature = gpuTemperature;
         if (double.IsFinite(elapsedSeconds) && elapsedSeconds > 0)
         {
             _clock += Math.Min(elapsedSeconds, 60);
@@ -314,6 +317,7 @@ public sealed class FanControlEngine
         Last = new EngineSnapshot(
             state,
             _cpuTemp.Value,
+            _lastGpuTemperature,
             _lastMode,
             new FanDecision(_applied[Fan.Cpu], _appliedPercent[Fan.Cpu]),
             new FanDecision(_applied[Fan.Gpu], _appliedPercent[Fan.Gpu]),
