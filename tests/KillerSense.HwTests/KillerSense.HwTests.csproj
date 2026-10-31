@@ -7,5 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KillerSense.Core\KillerSense.Core.csproj" />
     <ProjectReference Include="..\..\src\KillerSense.Firmware\KillerSense.Firmware.csproj" />
+    <ProjectReference Include="..\..\src\KillerSense.Gpu\KillerSense.Gpu.csproj" />
   </ItemGroup>
 </Project>

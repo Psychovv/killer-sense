@@ -27,6 +27,11 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "gpu")
+        {
+            return ReadGpu(args); // não precisa de admin nem toca no firmware da Acer
+        }
+
         if (!IsAdministrator())
         {
             Console.Error.WriteLine("Precisa rodar como administrador.");
@@ -55,6 +60,25 @@ internal static class Program
             Console.Error.WriteLine($"ERRO: {ex.Message}");
             return 1;
         }
+    }
+
+    /// <summary>gpu [--samples N]: estado de energia + temperatura via NVML, uma leitura por segundo.</summary>
+    private static int ReadGpu(string[] args)
+    {
+        var samples = Math.Clamp(ArgInt(args, "--samples") ?? 5, 1, 120);
+        using var gpu = new KillerSense.Gpu.NvidiaGpuSensor();
+        Log($"GPU: {gpu.InstanceId ?? "não encontrada"}");
+        for (var i = 0; i < samples; i++)
+        {
+            var r = gpu.Read();
+            Log(r.PoweredOn ? (r.Temperature is { } t ? $"ligada (D0)  {t} °C" : "ligada (D0)  erro de leitura") : "desligada (não consultada)");
+            if (i < samples - 1)
+            {
+                Thread.Sleep(1000);
+            }
+        }
+
+        return 0;
     }
 
     private static int Read(AcerWmiFirmware fw)
