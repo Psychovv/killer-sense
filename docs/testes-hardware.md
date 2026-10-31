@@ -62,6 +62,11 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - O notebook usa espera moderna (S0), sem S3: o Windows não avisa os serviços. Por decisão do usuário a curva continua ativa com a tela desligada (docs/arquitetura.md §6.3).
 - A suspensão que "bugou" foi investigada: saídas da espera por mouse/teclado, sem erros no Windows, serviço pausado sem chamar o firmware desde 00:08:55. Sem indício de causa no killer-sense.
 
+### T6 — temperatura da GPU (NVML) sem acordar a GPU (2026-11-06 00:39–00:41)
+- `HwTests gpu`: estado de energia lido pelo Windows (cfgmgr32, `DEVPKEY_Device_PowerData`) = **D0**; NVML = **50 °C** (`nvidia-smi`: 51 °C). ✅
+- Serviço instalado e atualizado: log "CPU 75 °C, **GPU 53 °C** | fan GPU Auto" — abaixo da entrada da GPU (55 °C), a fan da GPU fica no Auto do EC. ✅
+- Na tomada a GPU ficou sempre em D0 (30 s amostrando). A detecção de GPU desligada (D3) ainda precisa ser vista na bateria: rodar `HwTests gpu --samples 30` fora da tomada e conferir "desligada (não consultada)".
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
