@@ -49,8 +49,21 @@ Script: `scripts/hwtest/kill-service-test.ps1`. Serviço com `--cpu-entry 40` pa
 | +9 s | serviço novo: Auto → curva (Custom 20%) |
 - ✅ Watchdog + recuperação do Windows funcionando. O tempo até o Auto (~3,2 s após o último batimento) é ≤ 3 s de limite + até 1 s de ciclo; pode baixar o limite para 2,5 s se quiser.
 
+### T5 — retomada automática depois de mudança externa (2026-11-06 00:23, serviço instalado e atualizado)
+Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 min ⇒ fica pausado.
+| Momento (log do serviço) | Estado |
+|---|---|
+| 00:23:42 | Curve: CPU Custom 43% |
+| 00:23:54 | `HwTests auto` ⇒ **ExternalOverride** ("retomada automática em 30 s") |
+| 00:24:25 | **Curve de novo** (Custom 13%), 31 s depois, começando do Auto |
+- ✅ Retomada automática funcionando. O limite de 3 mudanças em 10 min está coberto pelos testes unitários.
+
+### Suspensão (espera moderna) — 2026-11-06 00:08–00:13
+- O notebook usa espera moderna (S0), sem S3: o Windows não avisa os serviços. Por decisão do usuário a curva continua ativa com a tela desligada (docs/arquitetura.md §6.3).
+- A suspensão que "bugou" foi investigada: saídas da espera por mouse/teclado, sem erros no Windows, serviço pausado sem chamar o firmware desde 00:08:55. Sem indício de causa no killer-sense.
+
 ### Pendentes da Fase 3.2
-- Suspensão/hibernação e desligamento (precisa do usuário suspender/desligar o notebook).
+- Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
 - Emergência (Max) só foi testada com o firmware simulado (precisa de CPU ≥ 95 °C real).
 - Stress de CPU/GPU com a curva ativa.
