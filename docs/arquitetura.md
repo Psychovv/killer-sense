@@ -143,6 +143,8 @@ O A17 mostrou que o Custom nunca gira abaixo de ~2000 rpm e que 20% já dá ~315
 
 O Watchdog só pode chamar uma operação: `SetGamingFanBehavior(0x00410009)`.
 
+**Espera moderna (S0, Modern Standby)** — este notebook não tem S3 (`powercfg /a`), então o Windows **não** envia o aviso de suspensão (`PBT_APMSUSPEND`) aos serviços e o tratamento de suspensão acima não é acionado. Decisão do usuário (2026-11-06): **a curva continua ativa com a tela desligada**, sem pausar. A suspensão que "bugou" em 2026-11-06 00:08–00:13 foi investigada: as saídas da espera foram por mouse/teclado, não houve erros no Windows e o serviço estava pausado (sem chamadas ao firmware) desde 00:08:55 — sem indício de que o killer-sense tenha causado o problema.
+
 ## 7. Convivência com o software da Acer (decisão D1)
 - O PredatorSense e os serviços dele continuam rodando e **podem escrever** (por exemplo: o app reenvia `FAN_CONTROL` ao abrir; a tecla de modos troca o `OPMS`; o Turbo reaplica o overclock).
 - O serviço confere a cada ciclo se o modo da fan e o `OPMS` continuam como ele deixou. Se mudarem por fora:
