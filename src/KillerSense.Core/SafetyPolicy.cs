@@ -37,6 +37,15 @@ public static class SafetyPolicy
 
     /// <summary>Volta ao Auto do EC quando cair esta margem abaixo da temperatura de entrada (e a curva estiver no piso).</summary>
     public const double DefaultExitMargin = 8;
+
+    /// <summary>Depois de uma mudança externa nas fans, retoma a curva após este tempo (s), começando do Auto.</summary>
+    public const double ExternalOverrideResumeSeconds = 30;
+
+    /// <summary>Mais mudanças externas que isto dentro da janela ⇒ fica pausado até reiniciar (alguém controla ativamente).</summary>
+    public const int MaxExternalOverrides = 3;
+
+    /// <summary>Janela (s) para contar as mudanças externas.</summary>
+    public const double ExternalOverrideWindowSeconds = 600;
 }
 
 /// <summary>Detecta e libera o estado de emergência térmica, com histerese.</summary>

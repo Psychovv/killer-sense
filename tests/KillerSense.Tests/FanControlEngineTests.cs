@@ -125,6 +125,69 @@ public class FanControlEngineTests
         Assert.Equal(EngineState.Curve, e.Tick(1).State);
     }
 
+    private static readonly Dictionary<Fan, FanMode> ExternalAuto = new() { [Fan.Cpu] = FanMode.Auto, [Fan.Gpu] = FanMode.Auto };
+
+    private static EngineSnapshot TickFor(FanControlEngine e, int seconds)
+    {
+        EngineSnapshot s = null!;
+        for (var i = 0; i < seconds; i++)
+        {
+            s = e.Tick(1);
+        }
+
+        return s;
+    }
+
+    [Fact]
+    public void Retoma_automaticamente_30s_depois_da_mudanca_externa_comecando_do_auto()
+    {
+        var (fw, e) = Make(75);
+        e.Tick(1);
+        fw.SetFanModes(ExternalAuto);
+        Assert.Equal(EngineState.ExternalOverride, e.Tick(1).State);
+        Assert.Equal(EngineState.ExternalOverride, TickFor(e, 29).State);
+        var autoWritesBefore = fw.Calls.Count(c => c == "SetFanModes(0x00410009)");
+        var resumed = e.Tick(1);
+        Assert.Equal(EngineState.Curve, resumed.State);
+        Assert.Equal(autoWritesBefore + 1, fw.Calls.Count(c => c == "SetFanModes(0x00410009)")); // recomeçou do Auto
+        Assert.Equal(FanMode.Custom, fw.GetFanMode(Fan.Cpu));
+    }
+
+    [Fact]
+    public void Quatro_mudancas_em_10_min_deixam_pausado_ate_retomar_manualmente()
+    {
+        var (fw, e) = Make(75);
+        e.Tick(1);
+        for (var i = 1; i <= 4; i++)
+        {
+            fw.SetFanModes(ExternalAuto);
+            var s = e.Tick(1);
+            Assert.Equal(EngineState.ExternalOverride, s.State);
+            if (i < 4)
+            {
+                Assert.Equal(EngineState.Curve, TickFor(e, 30).State);
+            }
+        }
+
+        Assert.Equal(EngineState.ExternalOverride, TickFor(e, 120).State);
+        Assert.Contains("retomar manualmente", e.Last!.Message, StringComparison.Ordinal);
+        e.Resume();
+        Assert.Equal(EngineState.Curve, e.Tick(1).State);
+    }
+
+    [Fact]
+    public void Mudancas_espacadas_continuam_retomando()
+    {
+        var (fw, e) = Make(75);
+        e.Tick(1);
+        for (var i = 0; i < 6; i++)
+        {
+            fw.SetFanModes(ExternalAuto);
+            Assert.Equal(EngineState.ExternalOverride, e.Tick(1).State);
+            Assert.Equal(EngineState.Curve, TickFor(e, 240).State); // uma mudança a cada ~4 min
+        }
+    }
+
     [Fact]
     public void Erro_ao_gravar_restaura_o_auto_e_pausa()
     {

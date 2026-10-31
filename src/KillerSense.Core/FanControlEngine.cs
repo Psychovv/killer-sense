@@ -64,9 +64,13 @@ public sealed class FanControlEngine
     private readonly Dictionary<Fan, FanMode> _applied = new() { [Fan.Cpu] = FanMode.Auto, [Fan.Gpu] = FanMode.Auto };
     private readonly Dictionary<Fan, int?> _appliedPercent = new() { [Fan.Cpu] = null, [Fan.Gpu] = null };
     private OperatingMode? _lastMode;
+    private readonly Queue<double> _overrideTimes = new();
     private bool _paused;
     private EngineState? _pauseReason;
     private string? _pauseMessage;
+    private double _clock;           // segundos acumulados pelos Ticks (não depende do relógio do sistema)
+    private double _overrideAt;      // _clock da última mudança externa
+    private bool _overrideLocked;    // mudanças externas demais: só retoma manualmente ou ao reiniciar
 
     public FanControlEngine(IAcerFirmware firmware, FanProfile profile)
     {
@@ -105,18 +109,42 @@ public sealed class FanControlEngine
         _pauseMessage = reason;
     }
 
-    /// <summary>Retoma o controle depois de uma pausa (sempre recomeça do Auto).</summary>
+    /// <summary>Retoma o controle depois de uma pausa (pedido manual: também libera o bloqueio de mudanças externas).</summary>
     public void Resume()
     {
         _paused = false;
         _pauseReason = null;
         _pauseMessage = null;
+        _overrideLocked = false;
+        _overrideTimes.Clear();
     }
 
     /// <param name="elapsedSeconds">Tempo desde o ciclo anterior.</param>
     /// <param name="gpuTemperature">Temperatura válida da GPU (NVML); null = sem leitura ⇒ fan da GPU no Auto do EC.</param>
     public EngineSnapshot Tick(double elapsedSeconds, double? gpuTemperature = null)
     {
+        if (double.IsFinite(elapsedSeconds) && elapsedSeconds > 0)
+        {
+            _clock += Math.Min(elapsedSeconds, 60);
+        }
+
+        if (_paused && _pauseReason == EngineState.ExternalOverride && !_overrideLocked
+            && _clock - _overrideAt >= SafetyPolicy.ExternalOverrideResumeSeconds)
+        {
+            // Retomada automática (§7): sempre recomeça do Auto.
+            try
+            {
+                RestoreAuto();
+                _paused = false;
+                _pauseReason = null;
+                _pauseMessage = null;
+            }
+            catch (FirmwareException ex)
+            {
+                return FailAndPause(EngineState.FirmwareFault, $"Erro ao retomar: {ex.Message}");
+            }
+        }
+
         if (_paused)
         {
             return Publish(_pauseReason ?? EngineState.Paused, _pauseMessage);
@@ -182,9 +210,19 @@ public sealed class FanControlEngine
                 _gpuCtl.Reset();
                 _applied[Fan.Cpu] = _fw.GetFanMode(Fan.Cpu);
                 _applied[Fan.Gpu] = _fw.GetFanMode(Fan.Gpu);
+                while (_overrideTimes.Count > 0 && _clock - _overrideTimes.Peek() > SafetyPolicy.ExternalOverrideWindowSeconds)
+                {
+                    _overrideTimes.Dequeue();
+                }
+
+                _overrideTimes.Enqueue(_clock);
+                _overrideAt = _clock;
+                _overrideLocked = _overrideTimes.Count > SafetyPolicy.MaxExternalOverrides;
                 _paused = true;
                 _pauseReason = EngineState.ExternalOverride;
-                _pauseMessage = $"O modo da fan {fan} foi alterado por outro programa; controle pausado.";
+                _pauseMessage = _overrideLocked
+                    ? $"O modo da fan {fan} foi alterado por outro programa {_overrideTimes.Count} vezes em {SafetyPolicy.ExternalOverrideWindowSeconds / 60:0} min; controle pausado até retomar manualmente ou reiniciar o serviço."
+                    : $"O modo da fan {fan} foi alterado por outro programa; controle pausado, retomada automática em {SafetyPolicy.ExternalOverrideResumeSeconds:0} s.";
                 return Publish(EngineState.ExternalOverride, _pauseMessage);
             }
         }
