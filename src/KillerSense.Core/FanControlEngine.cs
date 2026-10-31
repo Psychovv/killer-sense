@@ -45,7 +45,9 @@ public sealed record EngineSnapshot(
     OperatingMode? OperatingMode,
     FanDecision Cpu,
     FanDecision Gpu,
-    string? Message)
+    string? Message,
+    int? CpuFanRpm = null,
+    int? GpuFanRpm = null)
 {
     /// <summary>Verdadeiro se alguma fan não está no Auto do EC por decisão do serviço (vale para o watchdog).</summary>
     public bool ManualActive => Cpu.Mode != FanMode.Auto || Gpu.Mode != FanMode.Auto;
@@ -66,6 +68,8 @@ public sealed class FanControlEngine
     private readonly Dictionary<Fan, int?> _appliedPercent = new() { [Fan.Cpu] = null, [Fan.Gpu] = null };
     private OperatingMode? _lastMode;
     private double? _lastGpuTemperature;
+    private int? _cpuRpm;
+    private int? _gpuRpm;
     private readonly Queue<double> _overrideTimes = new();
     private bool _paused;
     private EngineState? _pauseReason;
@@ -150,6 +154,7 @@ public sealed class FanControlEngine
 
         if (_paused)
         {
+            _cpuRpm = _gpuRpm = null; // pausado: sem chamadas ao firmware, sem RPM
             return Publish(_pauseReason ?? EngineState.Paused, _pauseMessage);
         }
 
@@ -166,6 +171,8 @@ public sealed class FanControlEngine
     private EngineSnapshot TickCore(double dt, double? gpuTemperature)
     {
         _cpuTemp.Add(TryRead(() => _fw.ReadSensor(Sensor.CpuTemperature)));
+        _cpuRpm = (int?)TryRead(() => _fw.ReadSensor(Sensor.CpuFanRpm)); // só telemetria (não decide nada)
+        _gpuRpm = (int?)TryRead(() => _fw.ReadSensor(Sensor.GpuFanRpm));
         var mode = TryReadMode() ?? _lastMode;
         _lastMode = mode;
         var floorMode = mode ?? OperatingMode.Turbo; // sem leitura do modo: usa o piso mais alto
@@ -321,7 +328,9 @@ public sealed class FanControlEngine
             _lastMode,
             new FanDecision(_applied[Fan.Cpu], _appliedPercent[Fan.Cpu]),
             new FanDecision(_applied[Fan.Gpu], _appliedPercent[Fan.Gpu]),
-            message);
+            message,
+            _cpuRpm,
+            _gpuRpm);
         return Last;
     }
 
