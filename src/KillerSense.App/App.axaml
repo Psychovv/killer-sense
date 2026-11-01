@@ -1,0 +1,35 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="KillerSense.App.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <!-- Tema Grafite (docs/prototipo/index.html, body.b) -->
+    <Color x:Key="KsBg">#1C1C20</Color>
+    <Color x:Key="KsSide">#202026</Color>
+    <Color x:Key="KsCard">#26262D</Color>
+    <Color x:Key="KsCard2">#2C2C34</Color>
+    <Color x:Key="KsLine">#34343D</Color>
+    <Color x:Key="KsText">#F2F2F5</Color>
+    <Color x:Key="KsMuted">#9A9AA6</Color>
+    <Color x:Key="KsAccent">#8B7BFF</Color>
+    <Color x:Key="KsAccent2">#5EC8FF</Color>
+    <Color x:Key="KsWarn">#F0B450</Color>
+    <Color x:Key="KsHot">#FF6B7A</Color>
+    <SolidColorBrush x:Key="KsBgBrush" Color="{StaticResource KsBg}" />
+    <SolidColorBrush x:Key="KsSideBrush" Color="{StaticResource KsSide}" />
+    <SolidColorBrush x:Key="KsCardBrush" Color="{StaticResource KsCard}" />
+    <SolidColorBrush x:Key="KsCard2Brush" Color="{StaticResource KsCard2}" />
+    <SolidColorBrush x:Key="KsLineBrush" Color="{StaticResource KsLine}" />
+    <SolidColorBrush x:Key="KsTextBrush" Color="{StaticResource KsText}" />
+    <SolidColorBrush x:Key="KsMutedBrush" Color="{StaticResource KsMuted}" />
+    <SolidColorBrush x:Key="KsAccentBrush" Color="{StaticResource KsAccent}" />
+    <SolidColorBrush x:Key="KsAccent2Brush" Color="{StaticResource KsAccent2}" />
+    <SolidColorBrush x:Key="KsWarnBrush" Color="{StaticResource KsWarn}" />
+    <SolidColorBrush x:Key="KsHotBrush" Color="{StaticResource KsHot}" />
+    <CornerRadius x:Key="KsRadius">8</CornerRadius>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://KillerSense/Theme/Grafite.axaml" />
+  </Application.Styles>
+</Application>

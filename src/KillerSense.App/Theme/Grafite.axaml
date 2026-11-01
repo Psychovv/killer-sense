@@ -1,0 +1,67 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{StaticResource KsBgBrush}" />
+    <Setter Property="Foreground" Value="{StaticResource KsTextBrush}" />
+    <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+  </Style>
+
+  <!-- Cartão -->
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{StaticResource KsCardBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="Padding" Value="18" />
+  </Style>
+
+  <!-- Textos -->
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{StaticResource KsMutedBrush}" />
+  </Style>
+  <Style Selector="TextBlock.big">
+    <Setter Property="FontSize" Value="34" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.value">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="HorizontalAlignment" Value="Right" />
+  </Style>
+  <Style Selector="TextBlock.h1">
+    <Setter Property="FontSize" Value="20" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- Menu lateral -->
+  <Style Selector="Button.nav">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{StaticResource KsMutedBrush}" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="Padding" Value="12,9" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+  <Style Selector="Button.nav.on">
+    <Setter Property="Background" Value="{StaticResource KsCard2Brush}" />
+    <Setter Property="Foreground" Value="{StaticResource KsTextBrush}" />
+  </Style>
+
+  <!-- Botões de ação -->
+  <Style Selector="Button.safe">
+    <Setter Property="Background" Value="{StaticResource KsCardBrush}" />
+    <Setter Property="BorderBrush" Value="{StaticResource KsAccentBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{StaticResource KsAccentBrush}" />
+    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="Padding" Value="14,7" />
+  </Style>
+
+  <!-- Chip de estado -->
+  <Style Selector="Border.chip">
+    <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="Padding" Value="10,5" />
+  </Style>
+</Styles>
