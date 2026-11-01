@@ -183,6 +183,12 @@
           "Microsoft.Management.Infrastructure": "[3.0.0, )"
         }
       },
+      "killersense.ipc": {
+        "type": "Project",
+        "dependencies": {
+          "KillerSense.Core": "[1.0.0, )"
+        }
+      },
       "Microsoft.Management.Infrastructure": {
         "type": "CentralTransitive",
         "requested": "[3.0.0, )",

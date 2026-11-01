@@ -5,6 +5,9 @@
     <Project Path="src/KillerSense.Gpu/KillerSense.Gpu.csproj">
       <Platform Project="x64" />
     </Project>
+    <Project Path="src/KillerSense.Ipc/KillerSense.Ipc.csproj">
+      <Platform Project="x64" />
+    </Project>
     <Project Path="src/KillerSense.Service/KillerSense.Service.csproj">
       <Platform Project="x64" />
     </Project>
