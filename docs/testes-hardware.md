@@ -67,6 +67,10 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Serviço instalado e atualizado: log "CPU 75 °C, **GPU 53 °C** | fan GPU Auto" — abaixo da entrada da GPU (55 °C), a fan da GPU fica no Auto do EC. ✅
 - Na tomada a GPU ficou sempre em D0 (30 s amostrando). A detecção de GPU desligada (D3) ainda precisa ser vista na bateria: rodar `HwTests gpu --samples 30` fora da tomada e conferir "desligada (não consultada)".
 
+### T7 — canal da interface (pipe) com o serviço instalado (2026-11-06 00:48)
+- Cliente rodando como **usuário comum (sem admin)** conectou em `\.pipekiller-sense`, assinou e recebeu o estado a cada 1 s: `state Curve, CPU 67 °C, GPU 52 °C, Balanced, fan CPU Custom 23% 3529 rpm, fan GPU Auto 2290 rpm`. ✅
+- Pedido desconhecido (`FormatDisk`) ⇒ `ack ok=false "Pedido inválido."`. ✅
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
