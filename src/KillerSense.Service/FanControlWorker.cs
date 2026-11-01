@@ -1,10 +1,14 @@
 using System.Diagnostics;
 using KillerSense.Core;
+using KillerSense.Ipc;
 
 namespace KillerSense.Service;
 
 /// <summary>Nome da memória compartilhada do batimento (o simulado usa um nome local, sem precisar de admin).</summary>
 public sealed record HeartbeatOptions(string Name);
+
+/// <summary>Nome do pipe da interface (o simulado usa outro nome).</summary>
+public sealed record IpcOptions(string PipeName);
 
 /// <summary>
 /// Laço de 1 s do serviço: roda o <see cref="FanControlEngine"/>, publica o batimento e registra mudanças de estado.
@@ -16,16 +20,49 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly IGpuSensor _gpu;
     private readonly GpuTemperatureFeed _gpuFeed = new();
     private readonly HeartbeatOptions _heartbeat;
+    private readonly IpcServer _ipc;
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
 
-    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, ILogger<FanControlWorker> log)
+    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ILogger<FanControlWorker> log)
     {
         _engine = engine;
         _gpu = gpu;
         _heartbeat = heartbeat;
         _log = log;
+        _ipc = new IpcServer(ipc.PipeName, HandleCommandAsync);
+    }
+
+    /// <summary>Comandos da interface: "Voltar ao Auto" (pausa) e "Retomar".</summary>
+    private Task<IpcMessage> HandleCommandAsync(IpcRequestType type)
+    {
+        try
+        {
+            lock (_gate)
+            {
+                switch (type)
+                {
+                    case IpcRequestType.RestoreAuto:
+                        _engine.Pause("Controle pausado pelo usuário (Voltar ao Auto).");
+                        break;
+                    case IpcRequestType.Resume:
+                        _engine.RestoreAuto();
+                        _engine.Resume();
+                        break;
+                    default:
+                        return Task.FromResult(IpcMessage.Ack(false, "Comando não suportado."));
+                }
+            }
+
+            LogCommand(_log, type);
+            return Task.FromResult(IpcMessage.Ack(true));
+        }
+        catch (FirmwareException ex)
+        {
+            LogCommandFailed(_log, ex, type);
+            return Task.FromResult(IpcMessage.Ack(false, ex.Message));
+        }
     }
 
     /// <summary>Suspensão do Windows: Auto antes de dormir e controle pausado.</summary>
@@ -49,6 +86,7 @@ public sealed partial class FanControlWorker : BackgroundService
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var sw = Stopwatch.StartNew();
+        var ipcLoop = Task.Run(() => _ipc.RunAsync(stoppingToken), stoppingToken);
         try
         {
             while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
@@ -63,6 +101,13 @@ public sealed partial class FanControlWorker : BackgroundService
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
+                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow));
+                if (ipcLoop.IsFaulted)
+                {
+                    LogIpcFailed(_log, ipcLoop.Exception!);
+                    ipcLoop = Task.Run(() => _ipc.RunAsync(stoppingToken), stoppingToken);
+                }
+
                 var key = (snap.State, snap.Cpu.Mode, snap.Gpu.Mode);
                 if (key != _lastLogged)
                 {
@@ -99,6 +144,15 @@ public sealed partial class FanControlWorker : BackgroundService
             LogAutoFailed(_log, ex, reason);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Comando da interface executado: {Command}.")]
+    private static partial void LogCommand(ILogger logger, IpcRequestType command);
+
+    [LoggerMessage(Level = LogLevel.Critical, Message = "FALHA ao executar o comando da interface {Command}.")]
+    private static partial void LogCommandFailed(ILogger logger, Exception ex, IpcRequestType command);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Servidor do pipe da interface falhou; reiniciando.")]
+    private static partial void LogIpcFailed(ILogger logger, Exception ex);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "killer-sense iniciado; fans no Auto do EC.")]
     private static partial void LogStarted(ILogger logger);
