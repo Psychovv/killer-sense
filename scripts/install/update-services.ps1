@@ -18,7 +18,11 @@ foreach ($name in 'KillerSense', 'KillerSenseWatchdog') {
 }
 foreach ($d in 'Service', 'Watchdog') {
   $target = Join-Path $dest $d
-  Remove-Item $target -Recurse -Force
+  # Logo apos a parada algum arquivo pode seguir travado por alguns segundos: tenta de novo.
+  for ($i = 1; ; $i++) {
+    try { Remove-Item $target -Recurse -Force; break }
+    catch { if ($i -ge 10) { throw }; "aguardando liberar arquivos em $target ($i)"; Start-Sleep -Seconds 1 }
+  }
   Copy-Item (Join-Path $PublishDir $d) $target -Recurse
   "atualizado: $target"
 }
