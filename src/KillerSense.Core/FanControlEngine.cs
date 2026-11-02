@@ -60,8 +60,8 @@ public sealed record EngineSnapshot(
 public sealed class FanControlEngine
 {
     private readonly IAcerFirmware _fw;
-    private readonly HybridFanController _cpuCtl;
-    private readonly HybridFanController _gpuCtl;
+    private HybridFanController _cpuCtl;
+    private HybridFanController _gpuCtl;
     private readonly SensorFilter _cpuTemp = SensorFilter.ForTemperature();
     private readonly EmergencyMonitor _emergency = new();
     private readonly Dictionary<Fan, FanMode> _applied = new() { [Fan.Cpu] = FanMode.Auto, [Fan.Gpu] = FanMode.Auto };
@@ -83,12 +83,30 @@ public sealed class FanControlEngine
         ArgumentNullException.ThrowIfNull(firmware);
         ArgumentNullException.ThrowIfNull(profile);
         _fw = firmware;
+        Profile = profile;
         _cpuCtl = new HybridFanController(profile.CpuCurve, profile.Tuning, profile.CpuEntryTemperature);
         _gpuCtl = new HybridFanController(profile.GpuCurve, profile.Tuning, profile.GpuEntryTemperature);
     }
 
     /// <summary>Último resultado.</summary>
     public EngineSnapshot? Last { get; private set; }
+
+    /// <summary>Perfil em uso.</summary>
+    public FanProfile Profile { get; private set; }
+
+    /// <summary>
+    /// Troca o perfil sem reiniciar. As curvas recomeçam do zero (sem histórico de histerese/rampa);
+    /// failsafe, emergência e pausas não mudam. O modo aplicado nas fans é corrigido no próximo ciclo.
+    /// </summary>
+    public void SetProfile(FanProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        var cpu = new HybridFanController(profile.CpuCurve, profile.Tuning, profile.CpuEntryTemperature);
+        var gpu = new HybridFanController(profile.GpuCurve, profile.Tuning, profile.GpuEntryTemperature);
+        Profile = profile;
+        _cpuCtl = cpu;
+        _gpuCtl = gpu;
+    }
 
     /// <summary>Coloca as duas fans no Auto do EC e confirma por leitura. Lança se não conseguir.</summary>
     public void RestoreAuto()
