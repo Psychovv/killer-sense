@@ -32,6 +32,8 @@ var testEntry = entryArg >= 0 && entryArg + 1 < args.Length
     ? e : (double?)null;
 ProfileStore? store = testEntry is not null ? null
     : new ProfileStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "config.simulated.json") : ProfileStore.DefaultPath);
+ControlStateStore? control = testEntry is not null ? null
+    : new ControlStateStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "control-disabled.simulated") : ControlStateStore.DefaultPath);
 var profile = FanProfile.Default;
 if (store is not null)
 {
@@ -58,6 +60,7 @@ builder.Services.AddSingleton(sp => new FanControlWorker(
     sp.GetRequiredService<HeartbeatOptions>(),
     sp.GetRequiredService<IpcOptions>(),
     store,
+    control,
     sp.GetRequiredService<ILogger<FanControlWorker>>()));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FanControlWorker>());
 if (WindowsServiceHelpers.IsWindowsService())

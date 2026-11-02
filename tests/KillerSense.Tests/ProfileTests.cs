@@ -94,6 +94,49 @@ public class ProfileStoreTests
     }
 }
 
+public class ControlStateTests
+{
+    [Fact]
+    public void Desativar_poe_auto_e_para_de_chamar_o_firmware_ate_reativar()
+    {
+        var fw = new SimulatedFirmware();
+        fw.SetSensor(Sensor.CpuTemperature, 75);
+        var e = new FanControlEngine(fw, FanProfile.Default);
+        Assert.Equal(FanMode.Custom, e.Tick(1).Cpu.Mode);
+        e.Disable("teste");
+        Assert.Equal(FanMode.Auto, fw.GetFanMode(Fan.Cpu));
+        var calls = fw.Calls.Count;
+        for (var i = 0; i < 120; i++)
+        {
+            Assert.Equal(EngineState.Disabled, e.Tick(1).State); // não retoma sozinho, nem depois de 30 s
+        }
+
+        Assert.Equal(calls, fw.Calls.Count); // desativado: nenhuma chamada ao firmware
+        Assert.True(e.IsDisabled);
+        e.Resume();
+        Assert.Equal(EngineState.Curve, e.Tick(1).State);
+    }
+
+    [Fact]
+    public void Marcador_persiste_a_escolha()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "ks-test-" + Guid.NewGuid().ToString("N"), "control-disabled");
+        try
+        {
+            var s = new ControlStateStore(path);
+            Assert.False(s.IsDisabled);
+            s.SetDisabled(true);
+            Assert.True(new ControlStateStore(path).IsDisabled);
+            s.SetDisabled(false);
+            Assert.False(s.IsDisabled);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+}
+
 public class EngineProfileTests
 {
     [Fact]

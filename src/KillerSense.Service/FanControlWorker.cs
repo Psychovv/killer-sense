@@ -22,13 +22,16 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly HeartbeatOptions _heartbeat;
     private readonly IpcServer _ipc;
     private readonly ProfileStore? _store;
+    private readonly ControlStateStore? _control;
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
 
     /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
-    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ILogger<FanControlWorker> log)
+    /// <param name="control">Onde fica a escolha "Encerrar"; null = não persistir.</param>
+    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, ILogger<FanControlWorker> log)
     {
+        _control = control;
         _engine = engine;
         _gpu = gpu;
         _heartbeat = heartbeat;
@@ -56,6 +59,15 @@ public sealed partial class FanControlWorker : BackgroundService
                         break;
                     case IpcRequestType.GetProfile:
                         return Task.FromResult(IpcMessage.ForProfile(FanProfileDto.From(_engine.Profile)));
+                    case IpcRequestType.Disable:
+                        _engine.Disable("killer-sense encerrado pelo usuário: fans no Auto do EC, PredatorSense no controle.");
+                        _control?.SetDisabled(true);
+                        break;
+                    case IpcRequestType.Enable:
+                        _control?.SetDisabled(false);
+                        _engine.RestoreAuto();
+                        _engine.Resume();
+                        break;
                     case IpcRequestType.SetProfile:
                         string? error = "Perfil ausente.";
                         if (request.Profile?.TryToProfile(out error) is not { } profile)
@@ -105,6 +117,10 @@ public sealed partial class FanControlWorker : BackgroundService
     {
         using var heartbeat = Heartbeat.CreateOrOpen(_heartbeat.Name);
         RestoreAutoNow("início do serviço");
+        if (_control?.IsDisabled == true)
+        {
+            Guarded("início desativado", () => _engine.Disable("killer-sense encerrado pelo usuário: fans no Auto do EC, PredatorSense no controle."));
+        }
         LogStarted(_log);
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));

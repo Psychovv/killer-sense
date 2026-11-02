@@ -23,6 +23,9 @@ public enum EngineState
 
     /// <summary>Pausado pelo sistema (suspensão) ou pelo usuário.</summary>
     Paused,
+
+    /// <summary>Desativado pelo usuário ("Encerrar killer-sense"): Auto do EC, sem chamadas ao firmware, até reativar.</summary>
+    Disabled,
 }
 
 /// <summary>Perfil de fans usado pelo motor (o perfil completo, com JSON, vem depois).</summary>
@@ -132,6 +135,18 @@ public sealed class FanControlEngine
         _pauseReason = EngineState.Paused;
         _pauseMessage = reason;
     }
+
+    /// <summary>Desativa o controle: Auto do EC e nenhuma chamada ao firmware até <see cref="Resume"/>.</summary>
+    public void Disable(string reason)
+    {
+        RestoreAuto();
+        _paused = true;
+        _pauseReason = EngineState.Disabled;
+        _pauseMessage = reason;
+    }
+
+    /// <summary>Verdadeiro enquanto desativado pelo usuário.</summary>
+    public bool IsDisabled => _paused && _pauseReason == EngineState.Disabled;
 
     /// <summary>Retoma o controle depois de uma pausa (pedido manual: também libera o bloqueio de mudanças externas).</summary>
     public void Resume()

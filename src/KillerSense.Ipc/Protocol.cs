@@ -92,6 +92,12 @@ public enum IpcRequestType
 
     /// <summary>Valida, aplica e salva um perfil de fans (campo <c>profile</c> obrigatório).</summary>
     SetProfile,
+
+    /// <summary>"Encerrar killer-sense": Auto do EC e controle desativado (persiste até <see cref="Enable"/>).</summary>
+    Disable,
+
+    /// <summary>Reativa o controle (recomeça do Auto) e grava isso.</summary>
+    Enable,
 }
 
 public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null);
