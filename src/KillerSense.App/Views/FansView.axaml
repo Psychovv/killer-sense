@@ -1,0 +1,98 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             xmlns:c="using:KillerSense.App.Controls"
+             x:Class="KillerSense.App.Views.FansView"
+             x:DataType="vm:FansViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+
+      <!-- Ações -->
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="Abaixo da temperatura de entrada a fan fica no Auto do EC (silencioso). Acima dela, a curva assume. Arraste os pontos para editar." />
+          <TextBlock Classes="label" Text="{Binding FloorText}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="nav" Content="Padrão" Command="{Binding RestoreDefaultsCommand}" Width="90" HorizontalContentAlignment="Center" />
+          <Button Classes="nav" Content="Descartar" Command="{Binding DiscardCommand}" IsEnabled="{Binding IsDirty}" Width="100" HorizontalContentAlignment="Center" />
+          <Button Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+        </StackPanel>
+      </Grid>
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                 Foreground="{Binding StatusIsError, Converter={x:Static vm:Converters.ErrorBrush}}"
+                 IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+      <Grid ColumnDefinitions="*,16,*">
+        <!-- CPU -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="Fan da CPU" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center"
+                         Text="{Binding CpuNow, StringFormat='Agora: {0:0} °C', TargetNullValue='Agora: —'}" />
+            </Grid>
+            <c:CurveEditor Height="270" Points="{Binding CpuCurve}" EntryTemperature="{Binding CpuEntryTemperature}"
+                           Floor="{Binding Floor}" CurrentTemperature="{Binding CpuNow}"
+                           RpmBase="2200" RpmPerPercent="48" CurveBrush="{StaticResource KsAccentBrush}" />
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <TextBlock Classes="label" Text="Entrada" VerticalAlignment="Center" />
+              <Slider Grid.Column="1" Minimum="30" Maximum="90" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CpuEntryTemperature}" />
+              <TextBlock Grid.Column="2" Text="{Binding CpuEntryTemperature, StringFormat='{}{0:0} °C'}" VerticalAlignment="Center" Width="48" />
+            </Grid>
+          </StackPanel>
+        </Border>
+        <!-- GPU -->
+        <Border Grid.Column="2" Classes="card">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="Fan da GPU" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center"
+                         Text="{Binding GpuNow, StringFormat='Agora: {0:0} °C', TargetNullValue='GPU desligada: Auto do EC'}" />
+            </Grid>
+            <c:CurveEditor Height="270" Points="{Binding GpuCurve}" EntryTemperature="{Binding GpuEntryTemperature}"
+                           Floor="{Binding Floor}" CurrentTemperature="{Binding GpuNow}"
+                           RpmBase="1870" RpmPerPercent="50" CurveBrush="{StaticResource KsAccent2Brush}" />
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+              <TextBlock Classes="label" Text="Entrada" VerticalAlignment="Center" />
+              <Slider Grid.Column="1" Minimum="30" Maximum="90" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding GpuEntryTemperature}" />
+              <TextBlock Grid.Column="2" Text="{Binding GpuEntryTemperature, StringFormat='{}{0:0} °C'}" VerticalAlignment="Center" Width="48" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Suavização -->
+      <Grid ColumnDefinitions="*,16,*,16,*">
+        <Border Classes="card">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+              <TextBlock Text="Histerese" />
+              <TextBlock Classes="label" Text="Só baixa depois de cair isto (°C)" />
+            </StackPanel>
+            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="15" Increment="1" FormatString="0" Value="{Binding Hysteresis}" Width="110" />
+          </Grid>
+        </Border>
+        <Border Grid.Column="2" Classes="card">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+              <TextBlock Text="Rampa de subida" />
+              <TextBlock Classes="label" Text="Máximo por segundo (%/s)" />
+            </StackPanel>
+            <NumericUpDown Grid.Column="1" Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding RampUp}" Width="110" />
+          </Grid>
+        </Border>
+        <Border Grid.Column="4" Classes="card">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel>
+              <TextBlock Text="Rampa de descida" />
+              <TextBlock Classes="label" Text="Máximo por segundo (%/s)" />
+            </StackPanel>
+            <NumericUpDown Grid.Column="1" Minimum="1" Maximum="100" Increment="1" FormatString="0" Value="{Binding RampDown}" Width="110" />
+          </Grid>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

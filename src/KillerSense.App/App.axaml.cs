@@ -17,10 +17,10 @@ public sealed class App : Application
         {
             // --simulated: conecta no serviço rodando com firmware simulado (desenvolvimento).
             var pipe = desktop.Args?.Contains("--simulated") == true ? IpcProtocol.SimulatedPipeName : IpcProtocol.PipeName;
-            var dashboard = new DashboardViewModel(new ServiceClient(pipe));
-            desktop.MainWindow = new MainWindow { DataContext = dashboard };
-            dashboard.Start();
-            desktop.Exit += (_, _) => dashboard.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            var main = new MainViewModel(new ServiceClient(pipe));
+            desktop.MainWindow = new MainWindow { DataContext = main };
+            main.Start();
+            desktop.Exit += (_, _) => main.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
 
         base.OnFrameworkInitializationCompleted();

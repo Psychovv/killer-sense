@@ -40,6 +40,10 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty] public partial string GpuFanText { get; set; } = "—";
     [ObservableProperty] public partial string GpuRpmText { get; set; } = "—";
     [ObservableProperty] public partial string OperatingModeText { get; set; } = "—";
+    [ObservableProperty] public partial OperatingMode? CurrentMode { get; set; }
+
+    /// <summary>Cliente compartilhado com as outras telas.</summary>
+    public ServiceClient Client => _client;
     [ObservableProperty] public partial string StateText { get; set; } = "—";
     [ObservableProperty] public partial string? StateDetail { get; set; }
     [ObservableProperty] public partial bool IsPaused { get; set; }
@@ -87,6 +91,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
         GpuFanText = s.GpuTemperature is null && s.GpuFanMode == FanMode.Auto ? "Auto do EC (GPU desligada ou sem leitura)" : FanText(s.GpuFanMode, s.GpuFanPercent);
         CpuRpmText = Rpm(s.CpuFanRpm);
         GpuRpmText = Rpm(s.GpuFanRpm);
+        CurrentMode = s.OperatingMode;
         OperatingModeText = s.OperatingMode switch
         {
             OperatingMode.Quiet => "Silencioso",
