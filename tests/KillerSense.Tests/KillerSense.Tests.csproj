@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\src\KillerSense.Core\KillerSense.Core.csproj" />
     <ProjectReference Include="..\..\src\KillerSense.Firmware\KillerSense.Firmware.csproj" />
     <ProjectReference Include="..\..\src\KillerSense.Ipc\KillerSense.Ipc.csproj" />
+    <ProjectReference Include="..\..\src\KillerSense.Service\KillerSense.Service.csproj" />
   </ItemGroup>
 </Project>

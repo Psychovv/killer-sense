@@ -21,22 +21,26 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly GpuTemperatureFeed _gpuFeed = new();
     private readonly HeartbeatOptions _heartbeat;
     private readonly IpcServer _ipc;
+    private readonly ProfileStore? _store;
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
 
-    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ILogger<FanControlWorker> log)
+    /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
+    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ILogger<FanControlWorker> log)
     {
         _engine = engine;
         _gpu = gpu;
         _heartbeat = heartbeat;
+        _store = store;
         _log = log;
-        _ipc = new IpcServer(ipc.PipeName, HandleCommandAsync);
+        _ipc = new IpcServer(ipc.PipeName, HandleRequestAsync);
     }
 
-    /// <summary>Comandos da interface: "Voltar ao Auto" (pausa) e "Retomar".</summary>
-    private Task<IpcMessage> HandleCommandAsync(IpcRequestType type)
+    /// <summary>Pedidos da interface: "Voltar ao Auto" (pausa), "Retomar" e perfil de fans.</summary>
+    private Task<IpcMessage> HandleRequestAsync(IpcRequest request)
     {
+        var type = request.Type;
         try
         {
             lock (_gate)
@@ -50,6 +54,20 @@ public sealed partial class FanControlWorker : BackgroundService
                         _engine.RestoreAuto();
                         _engine.Resume();
                         break;
+                    case IpcRequestType.GetProfile:
+                        return Task.FromResult(IpcMessage.ForProfile(FanProfileDto.From(_engine.Profile)));
+                    case IpcRequestType.SetProfile:
+                        string? error = "Perfil ausente.";
+                        if (request.Profile?.TryToProfile(out error) is not { } profile)
+                        {
+                            error ??= "Perfil inválido.";
+                            LogProfileRejected(_log, error);
+                            return Task.FromResult(IpcMessage.Ack(false, error));
+                        }
+
+                        _store?.Save(profile); // grava antes de aplicar: o que roda é o que está salvo
+                        _engine.SetProfile(profile);
+                        break;
                     default:
                         return Task.FromResult(IpcMessage.Ack(false, "Comando não suportado."));
                 }
@@ -62,6 +80,11 @@ public sealed partial class FanControlWorker : BackgroundService
         {
             LogCommandFailed(_log, ex, type);
             return Task.FromResult(IpcMessage.Ack(false, ex.Message));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogCommandFailed(_log, ex, type);
+            return Task.FromResult(IpcMessage.Ack(false, $"Não foi possível salvar o perfil: {ex.Message}"));
         }
     }
 
@@ -147,6 +170,9 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Comando da interface executado: {Command}.")]
     private static partial void LogCommand(ILogger logger, IpcRequestType command);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Perfil recusado: {Reason}")]
+    private static partial void LogProfileRejected(ILogger logger, string reason);
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "FALHA ao executar o comando da interface {Command}.")]
     private static partial void LogCommandFailed(ILogger logger, Exception ex, IpcRequestType command);

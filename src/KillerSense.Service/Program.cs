@@ -24,11 +24,25 @@ builder.Services.AddSingleton<IAcerFirmware>(_ => simulated ? new SimulatedFirmw
 builder.Services.AddSingleton<IGpuSensor>(_ => simulated ? new SimulatedGpuSensor() : new KillerSense.Gpu.NvidiaGpuSensor());
 builder.Services.AddSingleton(new HeartbeatOptions(simulated ? @"Local\KillerSense.Heartbeat.Simulated" : Heartbeat.DefaultName));
 builder.Services.AddSingleton(new IpcOptions(simulated ? KillerSense.Ipc.IpcProtocol.SimulatedPipeName : KillerSense.Ipc.IpcProtocol.PipeName));
-// --cpu-entry N (30–90): só para testes no hardware — força a curva a assumir com a CPU fria.
-var profile = FanProfile.Default;
+// Perfil: config.json (serviço) ou um arquivo à parte no modo simulado.
+// --cpu-entry N (30–90): só para testes no hardware — força a curva a assumir com a CPU fria e NÃO salva nada.
 var entryArg = Array.IndexOf(args, "--cpu-entry");
-if (entryArg >= 0 && entryArg + 1 < args.Length
-    && double.TryParse(args[entryArg + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var entry))
+var testEntry = entryArg >= 0 && entryArg + 1 < args.Length
+    && double.TryParse(args[entryArg + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var e)
+    ? e : (double?)null;
+ProfileStore? store = testEntry is not null ? null
+    : new ProfileStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "config.simulated.json") : ProfileStore.DefaultPath);
+var profile = FanProfile.Default;
+if (store is not null)
+{
+    profile = store.Load(out var problem);
+    if (problem is not null)
+    {
+        fileLogger.Warning("Perfil salvo ignorado, usando o padrão: {Problem}", problem);
+    }
+}
+
+if (testEntry is { } entry)
 {
     profile = profile with
     {
@@ -38,7 +52,13 @@ if (entryArg >= 0 && entryArg + 1 < args.Length
 }
 
 builder.Services.AddSingleton(sp => new FanControlEngine(sp.GetRequiredService<IAcerFirmware>(), profile));
-builder.Services.AddSingleton<FanControlWorker>();
+builder.Services.AddSingleton(sp => new FanControlWorker(
+    sp.GetRequiredService<FanControlEngine>(),
+    sp.GetRequiredService<IGpuSensor>(),
+    sp.GetRequiredService<HeartbeatOptions>(),
+    sp.GetRequiredService<IpcOptions>(),
+    store,
+    sp.GetRequiredService<ILogger<FanControlWorker>>()));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FanControlWorker>());
 if (WindowsServiceHelpers.IsWindowsService())
 {
