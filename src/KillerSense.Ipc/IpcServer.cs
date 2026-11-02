@@ -13,13 +13,13 @@ public sealed class IpcServer
 {
     private const int MaxClients = 8;
     private readonly string _pipeName;
-    private readonly Func<IpcRequestType, Task<IpcMessage>> _handler;
+    private readonly Func<IpcRequest, Task<IpcMessage>> _handler;
     private readonly ConcurrentDictionary<LineChannel, byte> _subscribers = new();
     private volatile string? _lastStateLine;
 
     /// <param name="pipeName">Nome do pipe (sem <c>\\.\pipe\</c>).</param>
-    /// <param name="handler">Executa RestoreAuto/Resume e devolve o ack (GetState/Subscribe são tratados aqui).</param>
-    public IpcServer(string pipeName, Func<IpcRequestType, Task<IpcMessage>> handler)
+    /// <param name="handler">Executa os demais pedidos (comandos e perfil) e devolve a resposta (GetState/Subscribe são tratados aqui).</param>
+    public IpcServer(string pipeName, Func<IpcRequest, Task<IpcMessage>> handler)
     {
         _pipeName = pipeName;
         _handler = handler;
@@ -113,7 +113,7 @@ public sealed class IpcServer
 
                         break;
                     default:
-                        var ack = await _handler(request.Type).ConfigureAwait(false);
+                        var ack = await _handler(request).ConfigureAwait(false);
                         await ch.WriteLineAsync(IpcProtocol.Serialize(ack), ct).ConfigureAwait(false);
                         break;
                 }

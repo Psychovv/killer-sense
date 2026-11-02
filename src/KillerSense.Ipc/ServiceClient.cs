@@ -11,6 +11,7 @@ public sealed class ServiceClient : IAsyncDisposable
     private readonly string _pipeName;
     private readonly CancellationTokenSource _cts = new();
     private readonly Lock _ackGate = new();
+    private readonly SemaphoreSlim _requestGate = new(1, 1);
     private TaskCompletionSource<IpcMessage>? _pendingAck;
     private LineChannel? _channel;
     private Task? _loop;
@@ -29,17 +30,35 @@ public sealed class ServiceClient : IAsyncDisposable
     public void Start() => _loop ??= Task.Run(() => RunAsync(_cts.Token));
 
     /// <summary>Envia um comando (RestoreAuto/Resume) e espera o ack do serviço.</summary>
-    public async Task<IpcMessage> SendCommandAsync(IpcRequestType type, TimeSpan timeout)
-    {
-        var ch = _channel ?? throw new InvalidOperationException("Sem conexão com o serviço killer-sense.");
-        var tcs = new TaskCompletionSource<IpcMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (_ackGate)
-        {
-            _pendingAck = tcs;
-        }
+    public Task<IpcMessage> SendCommandAsync(IpcRequestType type, TimeSpan timeout) =>
+        RequestAsync(new IpcRequest(type), timeout);
 
-        await ch.WriteLineAsync(IpcProtocol.Serialize(new IpcRequest(type)), _cts.Token).ConfigureAwait(false);
-        return await tcs.Task.WaitAsync(timeout).ConfigureAwait(false);
+    /// <summary>Envia um pedido e espera a resposta (ack ou profile). Um pedido por vez.</summary>
+    public async Task<IpcMessage> RequestAsync(IpcRequest request, TimeSpan timeout)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await _requestGate.WaitAsync(_cts.Token).ConfigureAwait(false);
+        try
+        {
+            var ch = _channel ?? throw new InvalidOperationException("Sem conexão com o serviço killer-sense.");
+            var tcs = new TaskCompletionSource<IpcMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_ackGate)
+            {
+                _pendingAck = tcs;
+            }
+
+            await ch.WriteLineAsync(IpcProtocol.Serialize(request), _cts.Token).ConfigureAwait(false);
+            return await tcs.Task.WaitAsync(timeout).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_ackGate)
+            {
+                _pendingAck = null;
+            }
+
+            _requestGate.Release();
+        }
     }
 
     private async Task RunAsync(CancellationToken ct)
@@ -61,7 +80,7 @@ public sealed class ServiceClient : IAsyncDisposable
                     {
                         StateReceived?.Invoke(state);
                     }
-                    else if (msg?.Kind == IpcMessage.KindAck)
+                    else if (msg?.Kind is IpcMessage.KindAck or IpcMessage.KindProfile)
                     {
                         TaskCompletionSource<IpcMessage>? tcs;
                         lock (_ackGate)
@@ -120,5 +139,6 @@ public sealed class ServiceClient : IAsyncDisposable
         }
 
         _cts.Dispose();
+        _requestGate.Dispose();
     }
 }

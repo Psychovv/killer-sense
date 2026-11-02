@@ -41,6 +41,23 @@ public static class IpcProtocol
         }
     }
 
+    /// <summary>Perfil em JSON legível (config.json).</summary>
+    public static string SerializeProfile(FanProfileDto profile) =>
+        JsonSerializer.Serialize(profile, IpcJsonContext.Indented.FanProfileDto);
+
+    /// <summary>Lê um perfil de config.json; null se o JSON for inválido (a validação vem depois).</summary>
+    public static FanProfileDto? ParseProfile(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, IpcJsonContext.Default.FanProfileDto);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Lê uma mensagem do serviço; null se o JSON for inválido.</summary>
     public static IpcMessage? ParseMessage(string line)
     {
@@ -69,19 +86,31 @@ public enum IpcRequestType
 
     /// <summary>Retoma o controle (recomeça do Auto).</summary>
     Resume,
+
+    /// <summary>Devolve o perfil de fans em uso.</summary>
+    GetProfile,
+
+    /// <summary>Valida, aplica e salva um perfil de fans (campo <c>profile</c> obrigatório).</summary>
+    SetProfile,
 }
 
-public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type);
+public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null);
 
-/// <summary>Mensagem do serviço: <c>state</c> (estado) ou <c>ack</c> (resposta a um comando).</summary>
-public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? Ok = null, string? Error = null)
+/// <summary>
+/// Mensagem do serviço: <c>state</c> (estado), <c>ack</c> (resposta a um comando) ou <c>profile</c>
+/// (resposta a <see cref="IpcRequestType.GetProfile"/>).
+/// </summary>
+public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? Ok = null, string? Error = null, FanProfileDto? Profile = null)
 {
     public const string KindState = "state";
     public const string KindAck = "ack";
+    public const string KindProfile = "profile";
 
     public static IpcMessage ForState(ServiceState state) => new(KindState, State: state);
 
     public static IpcMessage Ack(bool ok, string? error = null) => new(KindAck, Ok: ok, Error: error);
+
+    public static IpcMessage ForProfile(FanProfileDto profile) => new(KindProfile, Ok: true, Profile: profile);
 }
 
 /// <summary>Estado publicado pelo serviço a cada ciclo.</summary>
@@ -126,4 +155,12 @@ public sealed record ServiceState(
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(IpcRequest))]
 [JsonSerializable(typeof(IpcMessage))]
-internal sealed partial class IpcJsonContext : JsonSerializerContext;
+[JsonSerializable(typeof(FanProfileDto))]
+internal sealed partial class IpcJsonContext : JsonSerializerContext
+{
+    private static IpcJsonContext? s_indented;
+
+    /// <summary>Mesmo contexto com indentação (para o arquivo de configuração). Criado sob demanda, depois de <c>Default</c>.</summary>
+    public static IpcJsonContext Indented =>
+        s_indented ??= new(new System.Text.Json.JsonSerializerOptions(Default.Options!) { WriteIndented = true });
+}

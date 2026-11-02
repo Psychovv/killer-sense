@@ -63,10 +63,12 @@ public class IpcPipeTests
     {
         var name = $"killer-sense-test-{Guid.NewGuid():N}";
         var commands = new List<IpcRequestType>();
-        var server = new IpcServer(name, t =>
+        var server = new IpcServer(name, r =>
         {
-            commands.Add(t);
-            return Task.FromResult(IpcMessage.Ack(true));
+            commands.Add(r.Type);
+            return Task.FromResult(r.Type == IpcRequestType.GetProfile
+                ? IpcMessage.ForProfile(FanProfileDto.From(FanProfile.Default))
+                : IpcMessage.Ack(true));
         });
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         var serverTask = server.RunAsync(cts.Token);
@@ -86,7 +88,10 @@ public class IpcPipeTests
         Assert.Equal(EngineState.Curve, (await received.Task).State);
         var ack = await client.SendCommandAsync(IpcRequestType.RestoreAuto, TimeSpan.FromSeconds(5));
         Assert.True(ack.Ok);
-        Assert.Equal([IpcRequestType.RestoreAuto], commands);
+        var profile = await client.RequestAsync(new IpcRequest(IpcRequestType.GetProfile), TimeSpan.FromSeconds(5));
+        Assert.Equal(IpcMessage.KindProfile, profile.Kind);
+        Assert.Equal(60, profile.Profile!.CpuEntryTemperature);
+        Assert.Equal([IpcRequestType.RestoreAuto, IpcRequestType.GetProfile], commands);
 
         await cts.CancelAsync();
         await serverTask;
