@@ -5,6 +5,7 @@
         x:Class="KillerSense.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="killer-sense"
+        Icon="/Assets/killer-sense.ico"
         Width="1180" Height="760" MinWidth="960" MinHeight="620">
   <Grid ColumnDefinitions="220,*">
 

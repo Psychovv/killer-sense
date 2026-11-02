@@ -20,6 +20,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     private readonly ServiceClient _client;
     private readonly Queue<double> _cpuHistory = new();
     private readonly Queue<double> _gpuHistory = new();
+    private EngineState? _lastState;
 
     public DashboardViewModel(ServiceClient client)
     {
@@ -56,7 +57,8 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     private Task RestoreAutoAsync() => SendAsync(IpcRequestType.RestoreAuto);
 
     [RelayCommand]
-    private Task ResumeAsync() => SendAsync(IpcRequestType.Resume);
+    private Task ResumeAsync() =>
+        SendAsync(_lastState == EngineState.Disabled ? IpcRequestType.Enable : IpcRequestType.Resume); // desativado ⇒ reativa e apaga a escolha
 
     private async Task SendAsync(IpcRequestType type)
     {
@@ -110,10 +112,12 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
             EngineState.ExternalOverride => "Outro programa mudou as fans",
             EngineState.FirmwareFault => "Erro no firmware — Auto",
             EngineState.Paused => "Pausado — Auto",
+            EngineState.Disabled => "Desativado — PredatorSense no controle",
             _ => s.State.ToString(),
         };
         StateDetail = s.Message;
-        IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault;
+        _lastState = s.State;
+        IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault or EngineState.Disabled;
         Push(_cpuHistory, s.CpuTemperature);
         Push(_gpuHistory, s.GpuTemperature);
         History = [new ChartSeries(_gpuHistory.ToArray(), GpuBrush), new ChartSeries(_cpuHistory.ToArray(), CpuBrush)];

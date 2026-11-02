@@ -7,7 +7,14 @@
     <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
     <IsAotCompatible>true</IsAotCompatible>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\killer-sense.ico</ApplicationIcon>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Sem a thread de GC em segundo plano: menos memória parada no modo bandeja. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\KillerSense.Core\KillerSense.Core.csproj" />
     <ProjectReference Include="..\KillerSense.Ipc\KillerSense.Ipc.csproj" />
