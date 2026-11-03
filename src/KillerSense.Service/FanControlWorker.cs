@@ -25,6 +25,7 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly ControlStateStore? _control;
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
+    private readonly Func<bool?> _power = KillerSense.Firmware.PowerSource.IsOnAc; // leitura do Windows, também no simulado
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
 
     /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
@@ -40,7 +41,7 @@ public sealed partial class FanControlWorker : BackgroundService
         _ipc = new IpcServer(ipc.PipeName, HandleRequestAsync);
     }
 
-    /// <summary>Pedidos da interface: "Voltar ao Auto" (pausa), "Retomar" e perfil de fans.</summary>
+    /// <summary>Pedidos da interface: "Voltar ao Auto" (pausa), "Retomar", perfil de fans e modo de operação.</summary>
     private Task<IpcMessage> HandleRequestAsync(IpcRequest request)
     {
         var type = request.Type;
@@ -68,6 +69,15 @@ public sealed partial class FanControlWorker : BackgroundService
                         _engine.RestoreAuto();
                         _engine.Resume();
                         break;
+                    case IpcRequestType.SetOperatingMode:
+                        if (request.Mode is not { } mode || !Enum.IsDefined(mode))
+                        {
+                            return Task.FromResult(IpcMessage.Ack(false, "Modo ausente ou inválido."));
+                        }
+
+                        _engine.SetOperatingMode(mode, _power());
+                        LogModeSet(_log, mode);
+                        break;
                     case IpcRequestType.SetProfile:
                         string? error = "Perfil ausente.";
                         if (request.Profile?.TryToProfile(out error) is not { } profile)
@@ -93,6 +103,11 @@ public sealed partial class FanControlWorker : BackgroundService
             LogCommandFailed(_log, ex, type);
             return Task.FromResult(IpcMessage.Ack(false, ex.Message));
         }
+        catch (InvalidOperationException ex)
+        {
+            LogCommandRefused(_log, type, ex.Message);
+            return Task.FromResult(IpcMessage.Ack(false, ex.Message));
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             LogCommandFailed(_log, ex, type);
@@ -101,7 +116,7 @@ public sealed partial class FanControlWorker : BackgroundService
     }
 
     /// <summary>Suspensão do Windows: Auto antes de dormir e controle pausado.</summary>
-    public void Suspend() => Guarded("suspensão", () => _engine.Pause("Sistema em suspensão."));
+    public void Suspend() => Guarded("suspensão", () => _engine.Pause("Sistema em suspensão.", readMode: false));
 
     /// <summary>Retomada: recomeça do Auto e libera o controle.</summary>
     public void Resume() => Guarded("retomada", () =>
@@ -140,7 +155,7 @@ public sealed partial class FanControlWorker : BackgroundService
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
-                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow));
+                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power()));
                 if (ipcLoop.IsFaulted)
                 {
                     LogIpcFailed(_log, ipcLoop.Exception!);
@@ -186,6 +201,12 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Comando da interface executado: {Command}.")]
     private static partial void LogCommand(ILogger logger, IpcRequestType command);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Modo de operação trocado pela interface: {Mode}.")]
+    private static partial void LogModeSet(ILogger logger, OperatingMode mode);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Comando {Command} recusado: {Reason}")]
+    private static partial void LogCommandRefused(ILogger logger, IpcRequestType command, string reason);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Perfil recusado: {Reason}")]
     private static partial void LogProfileRejected(ILogger logger, string reason);

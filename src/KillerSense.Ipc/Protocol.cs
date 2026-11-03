@@ -98,9 +98,12 @@ public enum IpcRequestType
 
     /// <summary>Reativa o controle (recomeça do Auto) e grava isso.</summary>
     Enable,
+
+    /// <summary>Troca o modo de operação (campo <c>mode</c> obrigatório). Não fica "preso": o PredatorSense pode trocar depois.</summary>
+    SetOperatingMode,
 }
 
-public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null);
+public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null);
 
 /// <summary>
 /// Mensagem do serviço: <c>state</c> (estado), <c>ack</c> (resposta a um comando) ou <c>profile</c>
@@ -133,9 +136,11 @@ public sealed record ServiceState(
     FanMode GpuFanMode,
     int? GpuFanPercent,
     int? GpuFanRpm,
-    string? Message)
+    string? Message,
+    bool? OnAc = null)
 {
-    public static ServiceState From(EngineSnapshot s, DateTime utcNow)
+    /// <param name="onAc">Fonte de energia (true = tomada); null = desconhecida.</param>
+    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null)
     {
         ArgumentNullException.ThrowIfNull(s);
         return new(
@@ -151,7 +156,8 @@ public sealed record ServiceState(
             s.Gpu.Mode,
             s.Gpu.Percent,
             s.GpuFanRpm,
-            s.Message);
+            s.Message,
+            onAc);
     }
 }
 

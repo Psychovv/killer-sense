@@ -75,6 +75,7 @@ public sealed class FanControlEngine
     private int? _gpuRpm;
     private readonly Queue<double> _overrideTimes = new();
     private bool _paused;
+    private bool _pausedReadsMode;   // pausado, mas ainda lê o modo (leitura simples, sem SMI) para a tela não ficar velha
     private EngineState? _pauseReason;
     private string? _pauseMessage;
     private double _clock;           // segundos acumulados pelos Ticks (não depende do relógio do sistema)
@@ -127,11 +128,13 @@ public sealed class FanControlEngine
         }
     }
 
-    /// <summary>Pausa o controle (ex.: suspensão) já com as fans no Auto.</summary>
-    public void Pause(string reason)
+    /// <summary>Pausa o controle já com as fans no Auto.</summary>
+    /// <param name="readMode">false = nenhuma chamada ao firmware durante a pausa (ex.: suspensão).</param>
+    public void Pause(string reason, bool readMode = true)
     {
         RestoreAuto();
         _paused = true;
+        _pausedReadsMode = readMode;
         _pauseReason = EngineState.Paused;
         _pauseMessage = reason;
     }
@@ -141,8 +144,41 @@ public sealed class FanControlEngine
     {
         RestoreAuto();
         _paused = true;
+        _pausedReadsMode = false;
         _pauseReason = EngineState.Disabled;
         _pauseMessage = reason;
+    }
+
+    /// <summary>
+    /// Troca o modo de operação a pedido do usuário e confirma por leitura. Não "segura" o modo: se o
+    /// PredatorSense ou a tecla mudarem depois, vale a mudança deles (decisão do usuário, 2026-11-06).
+    /// </summary>
+    /// <param name="onAc">Fonte de energia atual; null = desconhecida (recusa).</param>
+    /// <exception cref="InvalidOperationException">Desativado, energia desconhecida ou modo não permitido.</exception>
+    public void SetOperatingMode(OperatingMode mode, bool? onAc)
+    {
+        if (IsDisabled)
+        {
+            throw new InvalidOperationException("O killer-sense está desativado; ative-o para trocar o modo.");
+        }
+
+        if (onAc is not { } ac)
+        {
+            throw new InvalidOperationException("Não foi possível saber se o notebook está na tomada; o modo não foi trocado.");
+        }
+
+        if (!OperatingModes.IsAllowed(mode, ac))
+        {
+            throw new InvalidOperationException(ac ? "O modo Eco só existe na bateria." : "Desempenho e Turbo só funcionam na tomada.");
+        }
+
+        _fw.SetOperatingMode(mode);
+        var read = _fw.GetOperatingMode();
+        _lastMode = read;
+        if (read != mode)
+        {
+            throw new FirmwareException($"O firmware não confirmou o modo {mode} (leu {read}).");
+        }
     }
 
     /// <summary>Verdadeiro enquanto desativado pelo usuário.</summary>
@@ -187,7 +223,12 @@ public sealed class FanControlEngine
 
         if (_paused)
         {
-            _cpuRpm = _gpuRpm = null; // pausado: sem chamadas ao firmware, sem RPM
+            _cpuRpm = _gpuRpm = null; // pausado: sem controle de fans, sem RPM
+            if (_pausedReadsMode)
+            {
+                _lastMode = TryReadMode() ?? _lastMode;
+            }
+
             return Publish(_pauseReason ?? EngineState.Paused, _pauseMessage);
         }
 
@@ -262,6 +303,7 @@ public sealed class FanControlEngine
                 _overrideAt = _clock;
                 _overrideLocked = _overrideTimes.Count > SafetyPolicy.MaxExternalOverrides;
                 _paused = true;
+                _pausedReadsMode = true; // a tecla/PredatorSense podem mudar o modo junto
                 _pauseReason = EngineState.ExternalOverride;
                 _pauseMessage = _overrideLocked
                     ? $"O modo da fan {fan} foi alterado por outro programa {_overrideTimes.Count} vezes em {SafetyPolicy.ExternalOverrideWindowSeconds / 60:0} min; controle pausado até retomar manualmente ou reiniciar o serviço."
@@ -347,6 +389,7 @@ public sealed class FanControlEngine
         }
 
         _paused = true;
+        _pausedReadsMode = false; // falha: nenhuma chamada ao firmware até retomar
         _pauseReason = state;
         _pauseMessage = full;
         return Publish(state, full);
