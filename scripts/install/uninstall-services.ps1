@@ -2,7 +2,7 @@
   killer-sense - remove o servico e o watchdog (rodar como ADMINISTRADOR).
   (Sem acentos de proposito: o PowerShell 5.1 le UTF-8 sem BOM como ANSI.)
   Para o servico principal primeiro (ele devolve o Auto ao parar), depois o watchdog; apaga as entradas
-  e a pasta em "C:\Program Files\KillerSense". Os logs em %ProgramData%\KillerSense ficam.
+  e a pasta em "C:\Program Files\KillerSense" (servicos e app) e o atalho do menu Iniciar. Os logs em %ProgramData%\KillerSense ficam.
 #>
 $ErrorActionPreference = 'Stop'
 foreach ($name in 'KillerSense', 'KillerSenseWatchdog') {
@@ -15,3 +15,5 @@ foreach ($name in 'KillerSense', 'KillerSenseWatchdog') {
 }
 $dest = Join-Path $env:ProgramFiles 'KillerSense'
 if (Test-Path $dest) { Remove-Item $dest -Recurse -Force; "pasta removida: $dest" }
+$link = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\killer-sense.lnk'
+if (Test-Path $link) { Remove-Item $link -Force; "atalho removido: $link" }
