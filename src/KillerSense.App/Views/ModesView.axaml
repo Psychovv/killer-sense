@@ -1,0 +1,76 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             x:Class="KillerSense.App.Views.ModesView"
+             x:DataType="vm:ModesViewModel">
+  <UserControl.Styles>
+    <Style Selector="Button.mode">
+      <Setter Property="Background" Value="{StaticResource KsCardBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+      <Setter Property="Padding" Value="18,16" />
+      <Setter Property="Margin" Value="0,0,12,12" />
+      <Setter Property="Width" Value="250" />
+      <Setter Property="MinHeight" Value="132" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Button.mode:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource KsCard2Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource KsMutedBrush}" />
+    </Style>
+    <Style Selector="Button.mode.on /template/ ContentPresenter, Button.mode.on:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource KsCard2Brush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource KsAccentBrush}" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <Style Selector="Button.mode:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="{StaticResource KsCardBrush}" />
+    </Style>
+    <Style Selector="Button.mode:disabled TextBlock">
+      <Setter Property="Opacity" Value="0.85" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+      <StackPanel Spacing="4">
+        <TextBlock Classes="label" TextWrapping="Wrap"
+                   Text="O modo muda os limites de potência da CPU e da GPU no firmware. O killer-sense não segura o modo: a tecla do modo e o PredatorSense continuam podendo trocar, e esta tela sempre mostra o modo real." />
+        <TextBlock Classes="label" Text="{Binding PowerText}" />
+      </StackPanel>
+
+      <Border Classes="card" IsVisible="{Binding Notice, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" Foreground="{StaticResource KsWarnBrush}" />
+      </Border>
+
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <WrapPanel />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ModeCardViewModel">
+            <Button Classes="mode" Classes.on="{Binding IsCurrent}" IsVisible="{Binding IsVisible}" Command="{Binding SelectCommand}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource KsTextBrush}" />
+                  <Border Grid.Column="1" Classes="chip" IsVisible="{Binding IsCurrent}" BorderBrush="{StaticResource KsAccentBrush}" Padding="8,2">
+                    <TextBlock Text="atual" FontSize="11" Foreground="{StaticResource KsAccentBrush}" />
+                  </Border>
+                </Grid>
+                <TextBlock Classes="label" Text="{Binding Description}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Button>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                 Foreground="{Binding StatusIsError, Converter={x:Static vm:Converters.ErrorBrush}}"
+                 IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -11,6 +11,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     {
         Dashboard = new DashboardViewModel(client);
         Fans = new FansViewModel(client, Dashboard);
+        Modes = new ModesViewModel(client, Dashboard);
         CurrentPage = Dashboard;
     }
 
@@ -18,15 +19,19 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public FansViewModel Fans { get; }
 
+    public ModesViewModel Modes { get; }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsDashboard), nameof(IsFans), nameof(Title))]
+    [NotifyPropertyChangedFor(nameof(IsDashboard), nameof(IsFans), nameof(IsModes), nameof(Title))]
     public partial ObservableObject CurrentPage { get; set; }
 
     public bool IsDashboard => CurrentPage == Dashboard;
 
     public bool IsFans => CurrentPage == Fans;
 
-    public string Title => IsFans ? "Fans" : "Painel";
+    public bool IsModes => CurrentPage == Modes;
+
+    public string Title => IsFans ? "Fans" : IsModes ? "Modos" : "Painel";
 
     public void Start() => Dashboard.Start();
 
@@ -63,6 +68,9 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     [RelayCommand]
     private void ShowDashboard() => CurrentPage = Dashboard;
+
+    [RelayCommand]
+    private void ShowModes() => CurrentPage = Modes;
 
     [RelayCommand]
     private async Task ShowFansAsync()
