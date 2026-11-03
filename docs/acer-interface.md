@@ -515,6 +515,23 @@ Ferramenta: `HwTests custom --cpu N --gpu N --hold 15`, uma execução por valor
 - A GPU estabiliza um pouco mais devagar (até ~3 s).
 - **Consequência:** os pisos aprovados (20/25/35/45%) equivalem a ~3150–4350 rpm, **bem mais barulhentos que o Auto em repouso (~2040)**. Proposta de ajuste em docs/arquitetura.md §5.4 (aguardando decisão).
 
+### Teste A16 — escrita do modo de operação (2026-11-06 13:46–13:50, na tomada, curva do killer-sense ativa)
+Ferramenta: `HwTests mode --set <modo> [--watch S]` (só aceita o subcomando 0x0B; Desempenho/Turbo só na tomada, Eco só na bateria). Saídas em `recon-out/a16-*.txt`.
+
+| Hora | Escrita | `OPMS` lido depois | Observação |
+|---|---|---|---|
+| 13:46:14 | `0x00B` Silencioso | Quiet por 10 s | o PredatorSense mostrou **Silencioso** (usuário) |
+| 13:46:47–51 | — | **Balanced** | o usuário **só abriu a janela** do PredatorSense: ela reaplicou o modo salvo (Equilibrado) e pôs as fans no Auto (o serviço detectou e pausou 30 s) |
+| 13:46:57 | `0x40B` Desempenho | Performance | ficou até a próxima escrita (13:49:54) com a janela do PredatorSense fechada, inclusive 60 s acompanhados |
+| 13:49:54 | `0x50B` Turbo | Turbo por 30 s | piso da curva subiu para 30% (≈4000 rpm). GPU ficou em **P8** em repouso: o overclock/P0 do Turbo do PredatorSense **não** entra |
+| 13:50:39 | `0x10B` Equilibrado | Balanced por 15 s | fan da CPU voltou a ~14% |
+
+- **CONFIRMADO:** `SetGamingMiscSetting((modo << 8) | 0x0B)` troca o modo; status 0 em todas as escritas; o PredatorSense reconhece o modo novo.
+- **CONFIRMADO:** os serviços da Acer em segundo plano **não** desfazem o modo. Quem desfaz é a **janela do PredatorSense ao abrir** (reaplica o modo e as fans salvos nela).
+- **CONFIRMADO:** o overclock da GPU por modo não vem do firmware; é o serviço da Acer (NVAPI) que aplica quando *ele* troca o modo. Pelo killer-sense, Turbo = só limites de potência do firmware. Overclock fica para a parte de GPU.
+- Os valores de PL1/PL2 de cada modo não foram anotados; continuam no A18.
+- Achado lateral: com o controle pausado o serviço não chama o firmware e mostra o último modo lido (13:47:19 mostrou "Balanced" já em Performance).
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
@@ -535,7 +552,7 @@ Ferramenta: `HwTests custom --cpu N --gpu N --hold 15`, uma execução por valor
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
 | ~~A15~~ | ~~Escritas de fan Custom e FanSpeed~~ | — | **feito 2026-11-05** (Max não testado: o usuário não quer fan a 100%) | Custom 40/40 → ~4166 / ~3896 rpm |
-| A16 | Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)` | aprovação por escrita | **o código da Acer confirmou que é esse método** (não `SetGamingProfile`) | `OPMS` muda; PL1/PL2 mudam no HWiNFO |
+| ~~A16~~ | ~~Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)`~~ | — | **feito 2026-11-06** | `OPMS` muda e fica; abrir a janela do PredatorSense reaplica o modo salvo nela |
 
 **Objetivo do mapeamento (definido pelo usuário em 2026-11-05):** paridade com todas as funções do PredatorSense antes da Fase 2. Recursos fora do PredatorSense (monitoramento extra etc.) ficam para depois. Fora do escopo, por risco: logo de boot da BIOS e tudo que use as classes ⛔.
 
