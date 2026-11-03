@@ -123,6 +123,27 @@ public static class AcerProtocol
         return (OperatingMode)raw;
     }
 
+    /// <summary>
+    /// Entrada de <c>SetGamingMiscSetting</c> para o modo: <c>(modo &lt;&lt; 8) | 0x0B</c>
+    /// (Silencioso 0x00B, Equilibrado 0x10B, Desempenho 0x40B, Turbo 0x50B, Eco 0x60B).
+    /// </summary>
+    public static ulong EncodeSetOperatingMode(OperatingMode mode)
+    {
+        if (!Enum.IsDefined(mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(mode), $"Modo de operação inválido: {(int)mode}.");
+        }
+
+        return ((ulong)mode << 8) | MiscOperatingMode;
+    }
+
+    /// <summary>
+    /// Só o subcomando 0x0B (modo) com um modo conhecido é aceito em <c>SetGamingMiscSetting</c>. Os outros
+    /// (0x01 TKST, 0x0F FMKY, 2/6/8 via SMI) ficam bloqueados.
+    /// </summary>
+    public static bool IsAllowedMiscSetting(ulong input) =>
+        (input & 0xFF) == MiscOperatingMode && input >> 16 == 0 && Enum.IsDefined((OperatingMode)(byte)(input >> 8));
+
     /// <summary>Status no byte 0 (Get e Set): 0 = OK; qualquer outro valor vira <see cref="FirmwareException"/>.</summary>
     public static void EnsureStatusOk(ulong output, string method)
     {

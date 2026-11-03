@@ -64,6 +64,12 @@ public sealed class SimulatedFirmware : IAcerFirmware
 
     public OperatingMode GetOperatingMode() => Record("GetOperatingMode", () => OperatingMode);
 
+    public void SetOperatingMode(OperatingMode mode)
+    {
+        var encoded = AcerProtocol.EncodeSetOperatingMode(mode); // mesma validação do real
+        Record($"SetOperatingMode(0x{encoded:X3})", () => OperatingMode = mode);
+    }
+
     private int Rpm(Fan fan) => _modes[fan] switch
     {
         FanMode.Max => 6976,

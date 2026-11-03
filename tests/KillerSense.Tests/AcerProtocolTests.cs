@@ -82,10 +82,55 @@ public class AcerProtocolTests
     public void Modo_de_operacao_desconhecido_lanca() =>
         Assert.Throws<FirmwareException>(() => AcerProtocol.DecodeOperatingMode(0x0200));
 
+    [Theory]
+    [InlineData(OperatingMode.Quiet, 0x00BUL)]
+    [InlineData(OperatingMode.Balanced, 0x10BUL)] // código da Acer
+    [InlineData(OperatingMode.Performance, 0x40BUL)]
+    [InlineData(OperatingMode.Turbo, 0x50BUL)]    // código da Acer
+    [InlineData(OperatingMode.Eco, 0x60BUL)]
+    public void SetOperatingMode_codifica_modo_no_byte_1(OperatingMode mode, ulong expected)
+    {
+        Assert.Equal(expected, AcerProtocol.EncodeSetOperatingMode(mode));
+        Assert.True(AcerProtocol.IsAllowedMiscSetting(expected));
+    }
+
+    [Fact]
+    public void SetOperatingMode_rejeita_modo_invalido() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() => AcerProtocol.EncodeSetOperatingMode((OperatingMode)2));
+
+    [Theory]
+    [InlineData(0x001UL)]    // TKST
+    [InlineData(0x10FUL)]    // FMKY
+    [InlineData(0x002UL)]    // SMI
+    [InlineData(0x006UL)]    // SMI
+    [InlineData(0x008UL)]    // SMI
+    [InlineData(0x20BUL)]    // modo 2 não existe
+    [InlineData(0x1010BUL)]  // bytes extras
+    public void MiscSetting_fora_do_modo_e_bloqueado(ulong input) =>
+        Assert.False(AcerProtocol.IsAllowedMiscSetting(input));
+
+    [Fact]
+    public void WMI_recusa_misc_setting_fora_do_modo_antes_de_chamar_o_firmware()
+    {
+        using var fw = new AcerWmiFirmware();
+        var ex = Assert.Throws<InvalidOperationException>(() => fw.Invoke("SetGamingMiscSetting", 0x001));
+        Assert.Contains("recusada", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, OperatingMode.Turbo, true)]
+    [InlineData(true, OperatingMode.Eco, false)]
+    [InlineData(false, OperatingMode.Turbo, false)]
+    [InlineData(false, OperatingMode.Performance, false)]
+    [InlineData(false, OperatingMode.Eco, true)]
+    [InlineData(false, OperatingMode.Balanced, true)]
+    public void Modos_permitidos_por_fonte_de_energia(bool onAc, OperatingMode mode, bool allowed) =>
+        Assert.Equal(allowed, OperatingModes.IsAllowed(mode, onAc));
+
     [Fact]
     public void Allowlist_so_tem_os_metodos_esperados_e_nenhuma_classe_perigosa()
     {
-        string[] expected = ["GetGamingFanBehavior", "SetGamingFanBehavior", "GetGamingFanSpeed", "SetGamingFanSpeed", "GetGamingSysInfo", "GetGamingMiscSetting"];
+        string[] expected = ["GetGamingFanBehavior", "SetGamingFanBehavior", "GetGamingFanSpeed", "SetGamingFanSpeed", "GetGamingSysInfo", "GetGamingMiscSetting", "SetGamingMiscSetting"];
         Assert.Equal(expected.Order(), AcerWmiFirmware.Allowlist.Keys.Order());
         Assert.Equal("AcerGamingFunction", AcerWmiFirmware.GamingClass);
         string[] forbidden = ["BIOSSetting", "UtilityFunction", "DataTrans", "MethodForPowerShell", "AcerBiosConfigurationTool"];

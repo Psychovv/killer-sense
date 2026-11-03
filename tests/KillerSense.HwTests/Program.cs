@@ -6,6 +6,9 @@
 //   custom --cpu N --gpu N [--hold S]      grava % (20–60) nas duas fans, põe as duas em Custom,
 //                                          acompanha por S segundos (5–60, padrão 20) e SEMPRE volta ao Auto
 //   auto                                   só volta as duas fans ao Auto (0x00410009)
+//   mode --set quiet|balanced|performance|turbo|eco
+//        [--watch S]                       troca o modo de operação (A16) e lê o OPMS por S s (5–120, padrão 10).
+//                                          Desempenho/Turbo só na tomada, Eco só na bateria.
 //
 // Proibido por decisão do usuário: modo Max e qualquer % acima de 60 (barulho).
 using System.Diagnostics;
@@ -52,6 +55,7 @@ internal static class Program
                 "read" => Read(fw),
                 "auto" => RestoreAuto(fw),
                 "custom" => Custom(fw, args),
+                "mode" => SetMode(fw, args),
                 _ => Fail($"Comando desconhecido: {args[0]}"),
             };
         }
@@ -167,6 +171,36 @@ internal static class Program
         }
 
         return aborted ? 3 : 0;
+    }
+
+    private static int SetMode(AcerWmiFirmware fw, string[] args)
+    {
+        var i = Array.IndexOf(args, "--set");
+        var name = i >= 0 && i + 1 < args.Length ? args[i + 1] : throw new ArgumentException("Informe --set <modo>.");
+        if (!Enum.TryParse<OperatingMode>(name, ignoreCase: true, out var mode) || !Enum.IsDefined(mode) || int.TryParse(name, out _))
+        {
+            throw new ArgumentException($"Modo desconhecido: {name} (quiet, balanced, performance, turbo, eco).");
+        }
+
+        var onAc = PowerSource.IsOnAc() ?? throw new ArgumentException("Não consegui saber se está na tomada; nada foi gravado.");
+        if (!OperatingModes.IsAllowed(mode, onAc))
+        {
+            throw new ArgumentException($"{mode} não é permitido {(onAc ? "na tomada" : "na bateria")}; nada foi gravado.");
+        }
+
+        Log($"energia: {(onAc ? "tomada" : "bateria")}");
+        PrintState(fw, "antes");
+        Log($"escrita: SetGamingMiscSetting(0x{AcerProtocol.EncodeSetOperatingMode(mode):X3})  {mode}");
+        fw.SetOperatingMode(mode);
+        var watch = Math.Clamp(ArgInt(args, "--watch") ?? 10, 5, 120);
+        for (var s = 1; s <= watch; s++)
+        {
+            Thread.Sleep(1000);
+            Log($"t={s,2}s  OPMS={fw.GetOperatingMode()}  CPU {fw.ReadSensor(Sensor.CpuTemperature)} °C  fan CPU {fw.ReadSensor(Sensor.CpuFanRpm)} rpm");
+        }
+
+        PrintState(fw, "depois");
+        return fw.GetOperatingMode() == mode ? 0 : 4;
     }
 
     private static void PrintState(AcerWmiFirmware fw, string label)

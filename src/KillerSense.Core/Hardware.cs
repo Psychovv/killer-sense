@@ -25,6 +25,17 @@ public enum OperatingMode : byte
     Eco = 6,
 }
 
+/// <summary>Quais modos podem ser escolhidos em cada fonte de energia (mesma regra do PredatorSense).</summary>
+public static class OperatingModes
+{
+    /// <summary>Na tomada: Silencioso, Equilibrado, Desempenho, Turbo. Na bateria: Equilibrado e Eco.</summary>
+    public static IReadOnlyList<OperatingMode> Available(bool onAc) => onAc
+        ? [OperatingMode.Quiet, OperatingMode.Balanced, OperatingMode.Performance, OperatingMode.Turbo]
+        : [OperatingMode.Balanced, OperatingMode.Eco];
+
+    public static bool IsAllowed(OperatingMode mode, bool onAc) => Available(onAc).Contains(mode);
+}
+
 /// <summary>Sensores lidos via <c>GetGamingSysInfo</c> (índice no byte 1 da entrada).</summary>
 public enum Sensor : byte
 {

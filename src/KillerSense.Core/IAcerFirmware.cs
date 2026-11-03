@@ -41,4 +41,7 @@ public interface IAcerFirmware
 
     /// <summary>Modo de operação atual (<c>GetGamingMiscSetting(0x0B)</c>).</summary>
     OperatingMode GetOperatingMode();
+
+    /// <summary>Troca o modo de operação (<c>SetGamingMiscSetting((modo &lt;&lt; 8) | 0x0B)</c>, teste A16).</summary>
+    void SetOperatingMode(OperatingMode mode);
 }

@@ -24,6 +24,7 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
         ["SetGamingFanSpeed"] = CimType.UInt64,
         ["GetGamingSysInfo"] = CimType.UInt32,
         ["GetGamingMiscSetting"] = CimType.UInt32,
+        ["SetGamingMiscSetting"] = CimType.UInt64, // só o modo (0x0B): ver AcerProtocol.IsAllowedMiscSetting
     };
 
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(5);
@@ -63,12 +64,23 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
     public OperatingMode GetOperatingMode() =>
         AcerProtocol.DecodeOperatingMode(Invoke("GetGamingMiscSetting", AcerProtocol.MiscOperatingMode));
 
+    public void SetOperatingMode(OperatingMode mode)
+    {
+        var input = AcerProtocol.EncodeSetOperatingMode(mode);
+        AcerProtocol.EnsureStatusOk(Invoke("SetGamingMiscSetting", input), "SetGamingMiscSetting");
+    }
+
     /// <summary>Uma chamada WMI por vez, com timeout. Verifica a lista de permissão antes de tudo.</summary>
     internal ulong Invoke(string method, ulong input)
     {
         if (!Allowlist.TryGetValue(method, out var inputType))
         {
             throw new InvalidOperationException($"Método fora da lista de permissão: {method}.");
+        }
+
+        if (method == "SetGamingMiscSetting" && !AcerProtocol.IsAllowedMiscSetting(input))
+        {
+            throw new InvalidOperationException($"SetGamingMiscSetting só é permitido para o modo (0x0B); entrada 0x{input:X} recusada.");
         }
 
         if (inputType == CimType.UInt32 && input > uint.MaxValue)
