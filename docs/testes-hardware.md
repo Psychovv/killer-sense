@@ -71,6 +71,15 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Cliente rodando como **usuário comum (sem admin)** conectou em `\\.\pipe\killer-sense`, assinou e recebeu o estado a cada 1 s: `state Curve, CPU 67 °C, GPU 52 °C, Balanced, fan CPU Custom 23% 3529 rpm, fan GPU Auto 2290 rpm`. ✅
 - Pedido desconhecido (`FormatDisk`) ⇒ `ack ok=false "Pedido inválido."`. ✅
 
+## Fase 3.3 — interface
+
+### T8 — bandeja e "Encerrar killer-sense" (2026-11-06, serviço instalado e atualizado, na bateria)
+- Abrir o app ⇒ "Enable" no log do serviço na primeira conexão (08:14:52, 08:16, 08:17, 08:18). ✅
+- Fechar no X ⇒ janela destruída, app segue vivo na bandeja. ✅ (conferido pelo usuário: ícone, dica, abrir pelo clique)
+- Bandeja → "Encerrar killer-sense" (13:35:29) ⇒ log `Comando da interface executado: "Disable"` e `Estado "Disabled" … fans no Auto do EC, PredatorSense no controle`; arquivo `%ProgramData%\KillerSense\control-disabled` criado; processo do app encerrado. ✅
+- No mesmo intervalo houve suspensão de 13:05 a 13:35: o serviço aplicou o Auto do EC na suspensão e na retomada. ✅
+- Memória (build Release, desenho pelo Skia em software): **~100 MB** de working set com a janela aberta (40 MB privados) e **~31 MB** só na bandeja (18 MB privados). Com o desenho pela GPU eram ~195 MB nos dois casos, quase tudo do driver de vídeo da Intel (`igc1464.dll`, `igd10*`).
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
