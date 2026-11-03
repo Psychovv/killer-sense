@@ -80,6 +80,10 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - No mesmo intervalo houve suspensão de 13:05 a 13:35: o serviço aplicou o Auto do EC na suspensão e na retomada. ✅
 - Memória (build Release, desenho pelo Skia em software): **~100 MB** de working set com a janela aberta (40 MB privados) e **~31 MB** só na bandeja (18 MB privados). Com o desenho pela GPU eram ~195 MB nos dois casos, quase tudo do driver de vídeo da Intel (`igc1464.dll`, `igd10*`).
 
+### T9 — app instalado pelo menu Iniciar + salvar a curva (2026-11-06 13:41, na bateria)
+- Aberto pelo atalho do menu Iniciar (`C:\Program Files\KillerSense\App\KillerSense.exe`) ⇒ "Enable" (13:41:15), marcador `control-disabled` apagado, estado Auto ⇒ **Curve** 1 s depois (CPU 64 °C, Custom 10%). ✅
+- Página Fans: dois "SetProfile" (13:41:46 e 13:41:54) aceitos; `config.json` gravado às 13:41:54. ✅ (usuário: "tá funcionando")
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
