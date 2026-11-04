@@ -13,7 +13,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Fans = new FansViewModel(client, Dashboard);
         Modes = new ModesViewModel(client, Dashboard);
         Profiles = new ProfilesViewModel();
-        Battery = new BatteryViewModel(Dashboard);
+        Battery = new BatteryViewModel(client, Dashboard);
         Lighting = new LightingViewModel();
         Keyboard = new KeyboardViewModel();
         Gpu = new GpuViewModel();
@@ -25,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Fans", Fans),
             new(this, "Modos", Modes),
             new(this, "Perfis", Profiles, isPreview: true),
-            new(this, "Bateria", Battery, isPreview: true),
+            new(this, "Bateria", Battery),
             new(this, "Iluminação", Lighting, isPreview: true),
             new(this, "Teclado e sistema", Keyboard, isPreview: true),
             new(this, "GPU", Gpu, isPreview: true),

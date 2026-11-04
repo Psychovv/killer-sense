@@ -44,6 +44,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty] public partial OperatingMode? CurrentMode { get; set; }
     [ObservableProperty] public partial bool? OnAc { get; set; }
     [ObservableProperty] public partial bool IsDisabled { get; set; }
+    [ObservableProperty] public partial bool? ChargeLimitOn { get; set; }
 
     /// <summary>Cliente compartilhado com as outras telas.</summary>
     public ServiceClient Client => _client;
@@ -121,6 +122,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
         _lastState = s.State;
         IsDisabled = s.State == EngineState.Disabled;
         OnAc = s.OnAc;
+        ChargeLimitOn = s.ChargeLimitOn;
         IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault or EngineState.Disabled;
         Push(_cpuHistory, s.CpuTemperature);
         Push(_gpuHistory, s.GpuTemperature);
