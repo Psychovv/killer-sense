@@ -91,6 +91,14 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - No hardware: o usuário trocou pela página ⇒ log `Modo de operação trocado pela interface: "Performance"` (13:58:29); estado publicado `operatingMode: Performance`, curva ativa com piso de 15%. ✅
 - Achado: o serviço simulado gravava na mesma pasta e no mesmo nome de log do serviço real (os dois acabaram no `service-20261106_001.log`). Corrigido: o simulado grava em `simulated-service-*.log`.
 
+## Fase 4.2 — bateria
+
+### T11 — página Bateria (2026-11-06, serviço simulado)
+- Pipe: `SetChargeLimit enabled:true` aceito e o estado passou a `chargeLimitOn: true`; pedido sem valor recusado ("Valor do limite ausente.").
+- Janela: carga 100%, "Na tomada", saúde 97%, capacidade atual 87,7 Wh, de fábrica 90,6 Wh (lidas do driver da bateria do Windows, sem admin); ciclos "não informado" (o driver devolve 0).
+- Pendente: teste no hardware com a versão instalada (trocar o limite pela página, conferir no Care Center e no log `Limite de carga …`).
+- Pendente: ver a carga parar em 80% depois de descarregar abaixo disso com o limite ligado.
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.

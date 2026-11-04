@@ -457,7 +457,7 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 - `SetBatteryHealthControl(uBatteryNo, uFunctionMask, uFunctionStatus, uReservedIn[5])`: o código passa os valores direto (`BatteryIndex`, `BatteryFunctionMask`, `bool` liga/desliga), reservado zerado.
 - `GetBatteryHealthControlStatus(uBatteryNo, uFunctionQuery = 1, uReserved[2])`: `uFunctionList` é uma máscara de funções suportadas, lida como **bit0, bit1, bit2**; `uFunctionStatus[0..2] == 1` = função ligada.
 - Leitura deste notebook: `list = 03` → bit0 e bit1 suportados; `status = 00 00 FF` → as duas desligadas.
-- SUPOSIÇÃO forte: **bit0/máscara 1 = "Battery Boundary" (limite ~80%)**, bit1/máscara 2 = calibração. Então ligar o limite = `SetBatteryHealthControl(1, 1, 1)`, desligar = `(1, 1, 0)`. Confirmar com o teste A8 (ligar no Care Center e ver `status[0]` virar 1).
+- **CONFIRMADO (teste A8): bit0/máscara 1 = "Battery Boundary" (limite de 80%).** Ligar = `SetBatteryHealthControl(1, 1, 1)`, desligar = `(1, 1, 0)`. Bit1/máscara 2 continua SUPOSIÇÃO (calibração); o killer-sense não usa.
 - O limite via WMI é só liga/desliga (sem escolher o %). O caminho HID 2025 tem `Get/SetBatteryBoundary(bool, min, max)`, mas não se aplica a este modelo.
 
 **Teclado (`AcerECKeyboardController.dll`, modo estático):**
@@ -515,6 +515,13 @@ Ferramenta: `HwTests custom --cpu N --gpu N --hold 15`, uma execução por valor
 - A GPU estabiliza um pouco mais devagar (até ~3 s).
 - **Consequência:** os pisos aprovados (20/25/35/45%) equivalem a ~3150–4350 rpm, **bem mais barulhentos que o Auto em repouso (~2040)**. Proposta de ajuste em docs/arquitetura.md §5.4 (aguardando decisão).
 
+### Teste A8 — limite de carga de 80% (2026-11-06 19:23–19:26, na tomada, bateria em 100%)
+- Leitura com o limite desligado: `GetBatteryHealthControlStatus(1, 1)` → `list = 03`, `status = 00 00 FF 00 00`.
+- O usuário ligou "Battery Boundary Charging" no Care Center → `status = 01 00 FF 00 00`. **CONFIRMADO: bit0 = limite, `status[0]` = estado.**
+- Escrita pelo killer-sense (aprovada, via UAC): `SetBatteryHealthControl(1, 1, 0)` → `status[0] = 0`, e o Care Center passou a mostrar **desligado**. Depois `(1, 1, 1)` ligou de novo. **CONFIRMADO.**
+- Para reverter: `HwTests battery --limit on|off` ou o próprio Care Center.
+- Ainda não observado: a carga parar de fato em 80% (a bateria estava em 100%; o limite só impede de carregar, não descarrega até 80%).
+
 ### Teste A16 — escrita do modo de operação (2026-11-06 13:46–13:50, na tomada, curva do killer-sense ativa)
 Ferramenta: `HwTests mode --set <modo> [--watch S]` (só aceita o subcomando 0x0B; Desempenho/Turbo só na tomada, Eco só na bateria). Saídas em `recon-out/a16-*.txt`.
 
@@ -542,7 +549,7 @@ Ferramenta: `HwTests mode --set <modo> [--watch S]` (só aceita o subcomando 0x0
 | A5 | Voltar as fans para **Auto** depois de Custom/Max | — | depende do teste de Custom | o que muda (ou não) ao voltar ao Auto |
 | A6 | `GetGamingSysInfo` (temperaturas e RPM) | **aprovação do usuário** | escreve `EC.PSEE = 1` a cada chamada | RPM real e temperaturas |
 | A7 | Get* que viram SMI (3, 9, 15, 25; MiscSetting 2/6/8/9; BatteryControl) | aprovação do usuário | comportamento opaco ao ACPI | formato de FanBehavior, perfil e bateria |
-| A8 | Limite de bateria 80% no Care Center (liga/desliga) | — | **adiado pelo usuário (2026-11-05)**; o Get de BatteryControl já funciona | campos de `GetBatteryHealthControlStatus` (hoje `list=03`, `status=00 00 FF 00 00`) |
+| ~~A8~~ | ~~Limite de bateria 80% (liga/desliga)~~ | — | **feito 2026-11-06** | bit0 = limite, `status[0]` 1 = ligado; a escrita pelo killer-sense aparece no Care Center |
 | A9 | Teclado: trocar cor, efeito e brilho | — | **adiado pelo usuário (2026-11-05)** | confirmar `KBBP` = brilho, `KBLE` = efeito. Roteiro: estático com zonas vermelho/verde/azul/branco e brilho 50; depois Onda variando velocidade e direção; depois outros efeitos e luz desligada |
 | ~~A10~~ | ~~Custom com valores diferentes~~ | — | **feito 2026-11-05 (10/40)** | `C1FR` = CPU, `G1FR` = GPU |
 | ~~A11~~ | ~~`CTML` × HWiNFO~~ | — | **feito 2026-11-05** | `CTML` = temperatura da CPU |
