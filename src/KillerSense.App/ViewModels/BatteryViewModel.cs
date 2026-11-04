@@ -19,15 +19,23 @@ public sealed partial class BatteryViewModel : ObservableObject
     private readonly ServiceClient _client;
     private readonly DashboardViewModel _dashboard;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(5) };
+    private static readonly TimeSpan PendingTimeout = TimeSpan.FromSeconds(10);
     private bool _applying;
     private bool _sending;
+    // Valor aceito pelo serviço que o estado publicado ainda não mostra (ele chega no próximo ciclo).
+    private bool? _pending;
+    private DateTime _pendingSince;
 
     public BatteryViewModel(ServiceClient client, DashboardViewModel dashboard)
     {
         _client = client;
         _dashboard = dashboard;
         _dashboard.PropertyChanged += OnDashboardChanged;
-        _timer.Tick += (_, _) => ReadBattery();
+        _timer.Tick += (_, _) =>
+        {
+            ReadBattery();
+            ApplyLimitFromService(); // encerra um pedido pendente que o serviço não confirmou
+        };
         _timer.Start();
         ReadBattery();
         ApplyLimitFromService();
@@ -73,6 +81,8 @@ public sealed partial class BatteryViewModel : ObservableObject
         try
         {
             var ack = await _client.RequestAsync(new IpcRequest(IpcRequestType.SetChargeLimit, Enabled: enabled), Timeout).ConfigureAwait(true);
+            _pending = ack.Ok == true ? enabled : null;
+            _pendingSince = DateTime.UtcNow;
             SetStatus(ack.Ok == true ? (enabled ? "Limite de 80% ligado." : "Limite de 80% desligado.") : ack.Error ?? "O serviço recusou a troca.", ack.Ok != true);
         }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException)
@@ -104,6 +114,19 @@ public sealed partial class BatteryViewModel : ObservableObject
         }
 
         var known = _dashboard.ChargeLimitOn;
+        if (_pending is { } pending)
+        {
+            // Não volta o botão para o estado antigo enquanto o serviço não publica o novo.
+            if (known == pending || DateTime.UtcNow - _pendingSince > PendingTimeout)
+            {
+                _pending = null;
+            }
+            else
+            {
+                known = pending;
+            }
+        }
+
         _applying = true;
         try
         {
