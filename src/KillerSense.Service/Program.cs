@@ -11,7 +11,7 @@ var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Co
 Directory.CreateDirectory(logDir);
 using var fileLogger = new LoggerConfiguration()
     .WriteTo.File(
-        Path.Combine(logDir, "service-.log"),
+        Path.Combine(logDir, simulated ? "simulated-service-.log" : "service-.log"), // o simulado não se mistura ao log real
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14,
         formatProvider: System.Globalization.CultureInfo.InvariantCulture)
