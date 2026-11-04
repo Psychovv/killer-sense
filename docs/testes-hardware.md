@@ -93,10 +93,12 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 
 ## Fase 4.2 — bateria
 
-### T11 — página Bateria (2026-11-06, serviço simulado)
+### T11 — página Bateria (2026-11-06, serviço simulado e depois a versão instalada)
 - Pipe: `SetChargeLimit enabled:true` aceito e o estado passou a `chargeLimitOn: true`; pedido sem valor recusado ("Valor do limite ausente.").
 - Janela: carga 100%, "Na tomada", saúde 97%, capacidade atual 87,7 Wh, de fábrica 90,6 Wh (lidas do driver da bateria do Windows, sem admin); ciclos "não informado" (o driver devolve 0).
-- Pendente: teste no hardware com a versão instalada (trocar o limite pela página, conferir no Care Center e no log `Limite de carga …`).
+- No hardware, versão instalada (19:46–19:48, na tomada): desligar pela página ⇒ log `Limite de carga trocado pela interface: false` e o Care Center mostrou desligado; ligar ⇒ `true` (19:48:25) e o Care Center acompanhou. ✅
+- Achado e corrigido: logo depois da troca, o botão voltava por um instante ao estado antigo (a página relia o estado publicado, que só muda no ciclo seguinte), e o segundo clique do usuário mandou "desligar" de novo (19:46:05 e 19:46:06). Agora a página guarda o valor aceito até o serviço publicar (máx. 10 s). No simulado, 16 s depois de cada clique o botão continua no valor pedido.
+- Achado na instalação: publicar sem `--self-contained` gera serviços que não sobem (o PC só tem .NET 6); publicar sempre com `-r win-x64 --self-contained true`.
 - Pendente: ver a carga parar em 80% depois de descarregar abaixo disso com o limite ligado.
 
 ### Pendentes da Fase 3.2
