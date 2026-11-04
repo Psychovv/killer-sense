@@ -26,12 +26,16 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly ILogger<FanControlWorker> _log;
     private readonly Lock _gate = new();
     private readonly Func<bool?> _power = KillerSense.Firmware.PowerSource.IsOnAc; // leitura do Windows, também no simulado
+    private readonly ChargeLimitMonitor _chargeLimit;
+    private bool _suspended;
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
+    private bool? _lastLoggedChargeLimit;
 
     /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
     /// <param name="control">Onde fica a escolha "Encerrar"; null = não persistir.</param>
-    public FanControlWorker(FanControlEngine engine, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, ILogger<FanControlWorker> log)
+    public FanControlWorker(FanControlEngine engine, ChargeLimitMonitor chargeLimit, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, ILogger<FanControlWorker> log)
     {
+        _chargeLimit = chargeLimit;
         _control = control;
         _engine = engine;
         _gpu = gpu;
@@ -78,6 +82,20 @@ public sealed partial class FanControlWorker : BackgroundService
                         _engine.SetOperatingMode(mode, _power());
                         LogModeSet(_log, mode);
                         break;
+                    case IpcRequestType.SetChargeLimit:
+                        if (request.Enabled is not { } enabled)
+                        {
+                            return Task.FromResult(IpcMessage.Ack(false, "Valor do limite ausente."));
+                        }
+
+                        if (_engine.IsDisabled)
+                        {
+                            throw new InvalidOperationException("O killer-sense está desativado; ative-o para mudar o limite de carga.");
+                        }
+
+                        _chargeLimit.Set(enabled);
+                        LogChargeLimitSet(_log, enabled);
+                        break;
                     case IpcRequestType.SetProfile:
                         string? error = "Perfil ausente.";
                         if (request.Profile?.TryToProfile(out error) is not { } profile)
@@ -116,11 +134,16 @@ public sealed partial class FanControlWorker : BackgroundService
     }
 
     /// <summary>Suspensão do Windows: Auto antes de dormir e controle pausado.</summary>
-    public void Suspend() => Guarded("suspensão", () => _engine.Pause("Sistema em suspensão.", readMode: false));
+    public void Suspend() => Guarded("suspensão", () =>
+    {
+        _suspended = true;
+        _engine.Pause("Sistema em suspensão.", readMode: false);
+    });
 
     /// <summary>Retomada: recomeça do Auto e libera o controle.</summary>
     public void Resume() => Guarded("retomada", () =>
     {
+        _suspended = false;
         _engine.RestoreAuto();
         _engine.Resume();
     });
@@ -149,13 +172,22 @@ public sealed partial class FanControlWorker : BackgroundService
                 sw.Restart();
                 var gpuTemp = _gpuFeed.Update(_gpu.Read()); // não acorda a GPU desligada
                 EngineSnapshot snap;
+                bool? chargeLimit;
                 lock (_gate)
                 {
                     snap = _engine.Tick(dt, gpuTemp);
+                    var batteryAllowed = !_engine.IsDisabled && !_suspended; // desativado/suspenso: nenhuma chamada
+                    _chargeLimit.Tick(dt, batteryAllowed);
+                    chargeLimit = batteryAllowed ? _chargeLimit.IsOn : null;
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
-                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power()));
+                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power(), chargeLimit));
+                if (chargeLimit != _lastLoggedChargeLimit)
+                {
+                    LogChargeLimitState(_log, chargeLimit);
+                    _lastLoggedChargeLimit = chargeLimit;
+                }
                 if (ipcLoop.IsFaulted)
                 {
                     LogIpcFailed(_log, ipcLoop.Exception!);
@@ -204,6 +236,12 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Modo de operação trocado pela interface: {Mode}.")]
     private static partial void LogModeSet(ILogger logger, OperatingMode mode);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Limite de carga trocado pela interface: {Enabled}.")]
+    private static partial void LogChargeLimitSet(ILogger logger, bool enabled);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Limite de carga da bateria: {State} (null = desconhecido ou sem leitura).")]
+    private static partial void LogChargeLimitState(ILogger logger, bool? state);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Comando {Command} recusado: {Reason}")]
     private static partial void LogCommandRefused(ILogger logger, IpcRequestType command, string reason);

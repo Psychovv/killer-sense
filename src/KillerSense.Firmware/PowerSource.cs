@@ -21,6 +21,10 @@ public static partial class PowerSource
         };
     }
 
+    /// <summary>Carga da bateria em % (0–100); null = desconhecida.</summary>
+    public static int? BatteryPercent() =>
+        GetSystemPowerStatus(out var status) && status.BatteryLifePercent <= 100 ? status.BatteryLifePercent : null;
+
     [StructLayout(LayoutKind.Sequential)]
     private struct SystemPowerStatus
     {

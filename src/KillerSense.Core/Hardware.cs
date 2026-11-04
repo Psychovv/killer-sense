@@ -36,6 +36,19 @@ public static class OperatingModes
     public static bool IsAllowed(OperatingMode mode, bool onAc) => Available(onAc).Contains(mode);
 }
 
+/// <summary>
+/// Estado das funções de saúde da bateria (<c>BatteryControl.GetBatteryHealthControlStatus</c>).
+/// <c>SupportedMask</c>: bit0 = limite de carga (~80%, SUPOSIÇÃO forte até o A8), bit1 = calibração (SUPOSIÇÃO).
+/// <c>Status[i] == 1</c>: função i ligada.
+/// </summary>
+public sealed record BatteryHealth(byte SupportedMask, IReadOnlyList<byte> Status)
+{
+    public bool ChargeLimitSupported => (SupportedMask & 1) != 0;
+
+    /// <summary>null = o firmware não devolveu o estado.</summary>
+    public bool? ChargeLimitOn => Status.Count > 0 ? Status[0] == 1 : null;
+}
+
 /// <summary>Sensores lidos via <c>GetGamingSysInfo</c> (índice no byte 1 da entrada).</summary>
 public enum Sensor : byte
 {

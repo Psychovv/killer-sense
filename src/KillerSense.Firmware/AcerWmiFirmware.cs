@@ -1,5 +1,6 @@
 using KillerSense.Core;
 using Microsoft.Management.Infrastructure;
+using Microsoft.Management.Infrastructure.Generic;
 using Microsoft.Management.Infrastructure.Options;
 
 namespace KillerSense.Firmware;
@@ -27,11 +28,24 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
         ["SetGamingMiscSetting"] = CimType.UInt64, // só o modo (0x0B): ver AcerProtocol.IsAllowedMiscSetting
     };
 
+    internal const string BatteryClass = "BatteryControl";
+
+    /// <summary>Métodos permitidos de <see cref="BatteryClass"/> (as funções BatteryFunctionData ficam de fora).</summary>
+    internal static readonly IReadOnlySet<string> BatteryAllowlist = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "GetBatteryHealthControlStatus",
+        "SetBatteryHealthControl",
+    };
+
+    /// <summary>Única máscara aceita em SetBatteryHealthControl: bit0 = limite de carga. Calibração (bit1) bloqueada.</summary>
+    internal const byte ChargeLimitMask = 0x01;
+
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(5);
     private readonly Lock _gate = new();
     private readonly CimSession _session;
     private readonly CimOperationOptions _options;
     private CimInstance? _instance;
+    private CimInstance? _batteryInstance;
     private bool _disposed;
 
     public AcerWmiFirmware()
@@ -68,6 +82,80 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
     {
         var input = AcerProtocol.EncodeSetOperatingMode(mode);
         AcerProtocol.EnsureStatusOk(Invoke("SetGamingMiscSetting", input), "SetGamingMiscSetting");
+    }
+
+    public BatteryHealth GetBatteryHealth()
+    {
+        using var p = new CimMethodParametersCollection
+        {
+            CimMethodParameter.Create("uBatteryNo", (byte)1, CimType.UInt8, CimFlags.In),
+            CimMethodParameter.Create("uFunctionQuery", (byte)1, CimType.UInt8, CimFlags.In),
+            CimMethodParameter.Create("uReserved", new byte[2], CimType.UInt8Array, CimFlags.In),
+        };
+        return InvokeBattery("GetBatteryHealthControlStatus", p, outs =>
+        {
+            var ret = outs["uReturn"]?.Value as byte[];
+            if (ret is { Length: > 0 } && ret[0] != 0)
+            {
+                throw new FirmwareException($"GetBatteryHealthControlStatus devolveu uReturn {Convert.ToHexString(ret)}.");
+            }
+
+            var list = Convert.ToByte(outs["uFunctionList"]?.Value ?? 0, System.Globalization.CultureInfo.InvariantCulture);
+            var status = outs["uFunctionStatus"]?.Value as byte[] ?? [];
+            return new BatteryHealth(list, status);
+        });
+    }
+
+    public void SetBatteryChargeLimit(bool enabled)
+    {
+        using var p = new CimMethodParametersCollection
+        {
+            CimMethodParameter.Create("uBatteryNo", (byte)1, CimType.UInt8, CimFlags.In),
+            CimMethodParameter.Create("uFunctionMask", ChargeLimitMask, CimType.UInt8, CimFlags.In),
+            CimMethodParameter.Create("uFunctionStatus", (byte)(enabled ? 1 : 0), CimType.UInt8, CimFlags.In),
+            CimMethodParameter.Create("uReservedIn", new byte[5], CimType.UInt8Array, CimFlags.In),
+        };
+        InvokeBattery("SetBatteryHealthControl", p, outs =>
+        {
+            var ret = Convert.ToUInt16(outs["uReturn"]?.Value ?? 0, System.Globalization.CultureInfo.InvariantCulture);
+            return ret == 0 ? 0 : throw new FirmwareException($"SetBatteryHealthControl devolveu uReturn 0x{ret:X4}.");
+        });
+    }
+
+    /// <summary>Chamada a <see cref="BatteryClass"/>: só métodos da lista; o Set só com a máscara do limite de carga.</summary>
+    private T InvokeBattery<T>(string method, CimMethodParametersCollection parameters, Func<CimReadOnlyKeyedCollection<CimMethodParameter>, T> read)
+    {
+        if (!BatteryAllowlist.Contains(method))
+        {
+            throw new InvalidOperationException($"Método fora da lista de permissão: {method}.");
+        }
+
+        if (method == "SetBatteryHealthControl" && Convert.ToByte(parameters["uFunctionMask"]?.Value, System.Globalization.CultureInfo.InvariantCulture) != ChargeLimitMask)
+        {
+            throw new InvalidOperationException("SetBatteryHealthControl só é permitido para o limite de carga (máscara 1).");
+        }
+
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            try
+            {
+                _batteryInstance ??= _session.QueryInstances(Namespace, "WQL", $"SELECT * FROM {BatteryClass}", _options).Single();
+                using var result = _session.InvokeMethod(Namespace, _batteryInstance, method, parameters, _options);
+                if (result.ReturnValue?.Value is false)
+                {
+                    throw new FirmwareException($"{method} devolveu false.");
+                }
+
+                return read(result.OutParameters);
+            }
+            catch (CimException ex)
+            {
+                _batteryInstance?.Dispose();
+                _batteryInstance = null;
+                throw new FirmwareException($"Falha WMI em {method}: {ex.Message}", ex);
+            }
+        }
     }
 
     /// <summary>Uma chamada WMI por vez, com timeout. Verifica a lista de permissão antes de tudo.</summary>
@@ -127,6 +215,7 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
 
             _disposed = true;
             _instance?.Dispose();
+            _batteryInstance?.Dispose();
             _options.Dispose();
             _session.Dispose();
         }

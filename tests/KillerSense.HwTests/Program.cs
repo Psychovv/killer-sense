@@ -9,6 +9,8 @@
 //   mode --set quiet|balanced|performance|turbo|eco
 //        [--watch S]                       troca o modo de operação (A16) e lê o OPMS por S s (5–120, padrão 10).
 //                                          Desempenho/Turbo só na tomada, Eco só na bateria.
+//   battery                                só leitura: funções de saúde da bateria (A8)
+//   battery --limit on|off                 liga/desliga o limite de carga (SetBatteryHealthControl(1, 1, x))
 //
 // Proibido por decisão do usuário: modo Max e qualquer % acima de 60 (barulho).
 using System.Diagnostics;
@@ -56,6 +58,7 @@ internal static class Program
                 "auto" => RestoreAuto(fw),
                 "custom" => Custom(fw, args),
                 "mode" => SetMode(fw, args),
+                "battery" => Battery(fw, args),
                 _ => Fail($"Comando desconhecido: {args[0]}"),
             };
         }
@@ -201,6 +204,37 @@ internal static class Program
 
         PrintState(fw, "depois");
         return fw.GetOperatingMode() == mode ? 0 : 4;
+    }
+
+    private static int Battery(AcerWmiFirmware fw, string[] args)
+    {
+        PrintBattery(fw, "antes");
+        var i = Array.IndexOf(args, "--limit");
+        if (i < 0)
+        {
+            return 0;
+        }
+
+        var value = i + 1 < args.Length ? args[i + 1] : "";
+        bool on = value switch
+        {
+            "on" => true,
+            "off" => false,
+            _ => throw new ArgumentException("Use --limit on ou --limit off."),
+        };
+        Log($"escrita: SetBatteryHealthControl(uBatteryNo=1, uFunctionMask=1, uFunctionStatus={(on ? 1 : 0)}, uReservedIn=00×5)");
+        fw.SetBatteryChargeLimit(on);
+        Thread.Sleep(1000);
+        PrintBattery(fw, "depois");
+        return fw.GetBatteryHealth().ChargeLimitOn == on ? 0 : 4;
+    }
+
+    private static void PrintBattery(AcerWmiFirmware fw, string label)
+    {
+        var h = fw.GetBatteryHealth();
+        Log($"[{label}] uFunctionList=0x{h.SupportedMask:X2}  uFunctionStatus={Convert.ToHexString([.. h.Status])}  " +
+            $"limite={(h.ChargeLimitOn is { } on ? (on ? "LIGADO" : "desligado") : "?")}  " +
+            $"carga={PowerSource.BatteryPercent()?.ToString(CultureInfo.InvariantCulture) ?? "?"}%  energia={(PowerSource.IsOnAc() is { } ac ? (ac ? "tomada" : "bateria") : "?")}");
     }
 
     private static void PrintState(AcerWmiFirmware fw, string label)

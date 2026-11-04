@@ -101,9 +101,12 @@ public enum IpcRequestType
 
     /// <summary>Troca o modo de operação (campo <c>mode</c> obrigatório). Não fica "preso": o PredatorSense pode trocar depois.</summary>
     SetOperatingMode,
+
+    /// <summary>Liga/desliga o limite de carga de 80% (campo <c>enabled</c> obrigatório). Não fica "preso".</summary>
+    SetChargeLimit,
 }
 
-public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null);
+public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null, bool? Enabled = null);
 
 /// <summary>
 /// Mensagem do serviço: <c>state</c> (estado), <c>ack</c> (resposta a um comando) ou <c>profile</c>
@@ -137,10 +140,12 @@ public sealed record ServiceState(
     int? GpuFanPercent,
     int? GpuFanRpm,
     string? Message,
-    bool? OnAc = null)
+    bool? OnAc = null,
+    bool? ChargeLimitOn = null)
 {
     /// <param name="onAc">Fonte de energia (true = tomada); null = desconhecida.</param>
-    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null)
+    /// <param name="chargeLimitOn">Limite de carga de 80%; null = desconhecido (desativado, sem leitura).</param>
+    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null, bool? chargeLimitOn = null)
     {
         ArgumentNullException.ThrowIfNull(s);
         return new(
@@ -157,7 +162,8 @@ public sealed record ServiceState(
             s.Gpu.Percent,
             s.GpuFanRpm,
             s.Message,
-            onAc);
+            onAc,
+            chargeLimitOn);
     }
 }
 

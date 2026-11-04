@@ -54,8 +54,10 @@ if (testEntry is { } entry)
 }
 
 builder.Services.AddSingleton(sp => new FanControlEngine(sp.GetRequiredService<IAcerFirmware>(), profile));
+builder.Services.AddSingleton(sp => new ChargeLimitMonitor(sp.GetRequiredService<IAcerFirmware>()));
 builder.Services.AddSingleton(sp => new FanControlWorker(
     sp.GetRequiredService<FanControlEngine>(),
+    sp.GetRequiredService<ChargeLimitMonitor>(),
     sp.GetRequiredService<IGpuSensor>(),
     sp.GetRequiredService<HeartbeatOptions>(),
     sp.GetRequiredService<IpcOptions>(),

@@ -44,4 +44,10 @@ public interface IAcerFirmware
 
     /// <summary>Troca o modo de operação (<c>SetGamingMiscSetting((modo &lt;&lt; 8) | 0x0B)</c>, teste A16).</summary>
     void SetOperatingMode(OperatingMode mode);
+
+    /// <summary>Funções de saúde da bateria 1 (<c>BatteryControl.GetBatteryHealthControlStatus</c>, via SMI).</summary>
+    BatteryHealth GetBatteryHealth();
+
+    /// <summary>Liga/desliga o limite de carga (~80%): <c>SetBatteryHealthControl(1, 1, on)</c>. Só a máscara 1.</summary>
+    void SetBatteryChargeLimit(bool enabled);
 }

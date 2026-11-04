@@ -70,6 +70,14 @@ public sealed class SimulatedFirmware : IAcerFirmware
         Record($"SetOperatingMode(0x{encoded:X3})", () => OperatingMode = mode);
     }
 
+    /// <summary>Limite de carga simulado (começa desligado, como no notebook).</summary>
+    public bool ChargeLimitOn { get; set; }
+
+    public BatteryHealth GetBatteryHealth() =>
+        Record("GetBatteryHealth", () => new BatteryHealth(0x03, [(byte)(ChargeLimitOn ? 1 : 0), 0, 0xFF, 0, 0]));
+
+    public void SetBatteryChargeLimit(bool enabled) => Record($"SetBatteryChargeLimit({enabled})", () => ChargeLimitOn = enabled);
+
     private int Rpm(Fan fan) => _modes[fan] switch
     {
         FanMode.Max => 6976,
