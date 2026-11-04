@@ -84,6 +84,13 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Aberto pelo atalho do menu Iniciar (`C:\Program Files\KillerSense\App\KillerSense.exe`) ⇒ "Enable" (13:41:15), marcador `control-disabled` apagado, estado Auto ⇒ **Curve** 1 s depois (CPU 64 °C, Custom 10%). ✅
 - Página Fans: dois "SetProfile" (13:41:46 e 13:41:54) aceitos; `config.json` gravado às 13:41:54. ✅ (usuário: "tá funcionando")
 
+## Fase 4.1 — modos
+
+### T10 — troca de modo pela página Modos (2026-11-06 13:58, na tomada, versão instalada)
+- Antes, no serviço simulado: Turbo aceito e lido de volta, Eco recusado na tomada ("O modo Eco só existe na bateria."), pedido sem modo recusado; na janela, o cartão "atual" e o chip do topo acompanharam.
+- No hardware: o usuário trocou pela página ⇒ log `Modo de operação trocado pela interface: "Performance"` (13:58:29); estado publicado `operatingMode: Performance`, curva ativa com piso de 15%. ✅
+- Achado: o serviço simulado gravava na mesma pasta e no mesmo nome de log do serviço real (os dois acabaram no `service-20261106_001.log`). Corrigido: o simulado grava em `simulated-service-*.log`.
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
