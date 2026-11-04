@@ -57,6 +57,40 @@
     <Setter Property="Padding" Value="14,7" />
   </Style>
 
+  <!-- Faixa "prévia": tela ainda sem integração com o serviço -->
+  <Style Selector="Border.preview">
+    <Setter Property="BorderBrush" Value="{StaticResource KsWarnBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="Padding" Value="14,10" />
+  </Style>
+  <Style Selector="Border.preview TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource KsWarnBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+
+  <!-- Título de seção dentro de um cartão -->
+  <Style Selector="TextBlock.h2">
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="ToggleSwitch">
+    <Setter Property="OnContent" Value="Ligado" />
+    <Setter Property="OffContent" Value="Desligado" />
+  </Style>
+
+  <!-- Amostra de cor clicável -->
+  <Style Selector="Button.swatch">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+
   <!-- Chip de estado -->
   <Style Selector="Border.chip">
     <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />

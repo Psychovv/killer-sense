@@ -17,14 +17,24 @@
           <TextBlock Text="killer-sense" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock DockPanel.Dock="Bottom" Classes="label" Text="{Binding Dashboard.ConnectionText}" TextWrapping="Wrap" Margin="12,0" />
-        <StackPanel Spacing="4">
-          <Button Classes="nav" Classes.on="{Binding IsDashboard}" Content="Painel" Command="{Binding ShowDashboardCommand}" />
-          <Button Classes="nav" Classes.on="{Binding IsFans}" Content="Fans" Command="{Binding ShowFansCommand}" />
-          <Button Classes="nav" Classes.on="{Binding IsModes}" Content="Modos" Command="{Binding ShowModesCommand}" />
-          <Button Classes="nav" Content="Bateria" IsEnabled="False" />
-          <Button Classes="nav" Content="Iluminação" IsEnabled="False" />
-          <Button Classes="nav" Content="Configurações" IsEnabled="False" />
-        </StackPanel>
+        <ItemsControl ItemsSource="{Binding Pages}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:NavItemViewModel">
+              <Button Classes="nav" Classes.on="{Binding IsCurrent}" Command="{Binding SelectCommand}" HorizontalContentAlignment="Stretch">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Title}" />
+                  <TextBlock Grid.Column="1" Text="prévia" FontSize="10" Foreground="{StaticResource KsWarnBrush}"
+                             VerticalAlignment="Center" IsVisible="{Binding IsPreview}" />
+                </Grid>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </DockPanel>
     </Border>
 
@@ -62,6 +72,24 @@
           </DataTemplate>
           <DataTemplate DataType="vm:ModesViewModel">
             <v:ModesView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:ProfilesViewModel">
+            <v:ProfilesView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:BatteryViewModel">
+            <v:BatteryView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:LightingViewModel">
+            <v:LightingView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:KeyboardViewModel">
+            <v:KeyboardView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:GpuViewModel">
+            <v:GpuView />
+          </DataTemplate>
+          <DataTemplate DataType="vm:SettingsViewModel">
+            <v:SettingsView />
           </DataTemplate>
         </ContentControl.DataTemplates>
       </ContentControl>

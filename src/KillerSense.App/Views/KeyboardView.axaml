@@ -1,0 +1,110 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             x:Class="KillerSense.App.Views.KeyboardView"
+             x:DataType="vm:KeyboardViewModel">
+  <UserControl.Styles>
+    <!-- Etiqueta "a mapear": função ainda não encontrada no firmware -->
+    <Style Selector="Border.todo">
+      <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="999" />
+      <Setter Property="Padding" Value="8,1" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.todo TextBlock">
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Foreground" Value="{StaticResource KsMutedBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+      <Border Classes="preview">
+        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço. Várias opções ainda não foram encontradas no firmware (marcadas “a mapear”). Nada é enviado ao notebook." />
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="label" VerticalAlignment="Center" TextWrapping="Wrap"
+                   Text="Opções do teclado e do sistema que o PredatorSense e o Acer Quick Access oferecem." />
+        <Button Grid.Column="1" Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+      </Grid>
+
+      <!-- Tecla de modos -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock Classes="h2" Text="Tecla de modos" />
+            <Border Classes="todo"><TextBlock Text="a mapear · A12" /></Border>
+          </StackPanel>
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="A tecla perto do alto-falante só avisa o software; quem troca o modo é o programa. O killer-sense vai escutar esse aviso e aplicar o modo." />
+          <StackPanel Orientation="Horizontal" Spacing="24">
+            <RadioButton GroupName="modeKey" Content="Liga/desliga o Turbo" IsChecked="{Binding ModeKeyTurbo}" />
+            <RadioButton GroupName="modeKey" Content="Alterna entre os modos" IsChecked="{Binding ModeKeyCycles}" />
+          </StackPanel>
+          <TextBlock Classes="label" Text="{Binding ModeKeyHint}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- Teclado -->
+      <Border Classes="card">
+        <StackPanel Spacing="16">
+          <TextBlock Classes="h2" Text="Teclado" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="Travar a tecla Windows" />
+                <Border Classes="todo"><TextBlock Text="a mapear · A14" /></Border>
+              </StackPanel>
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Evita abrir o menu Iniciar sem querer durante um jogo." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding WindowsKeyLocked}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="Desligar o atalho da tecla de aderência" />
+                <Border Classes="todo"><TextBlock Text="a mapear · A14" /></Border>
+              </StackPanel>
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Apertar Shift 5 vezes não abre mais o aviso do Windows." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding StickyKeysShortcutOff}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="Brilho, cores e apagar a luz após 30 s ficam na tela Iluminação." />
+        </StackPanel>
+      </Border>
+
+      <!-- Sistema -->
+      <Border Classes="card">
+        <StackPanel Spacing="16">
+          <TextBlock Classes="h2" Text="Sistema" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="Carregar pela USB com o notebook desligado" />
+                <Border Classes="todo"><TextBlock Text="a mapear · A14" /></Border>
+              </StackPanel>
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Gasta bateria com o notebook desligado. Hoje está desligado no Acer Quick Access." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding UsbChargeWhenOff}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="2">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="Overdrive da tela" />
+                <Border Classes="todo"><TextBlock Text="a mapear · A14" /></Border>
+              </StackPanel>
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Menos rastro em imagens rápidas; pode criar halos em alguns jogos." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding LcdOverdrive}" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsWarnBrush}"
+                 IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

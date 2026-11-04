@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             x:Class="KillerSense.App.Views.GpuView"
+             x:DataType="vm:GpuViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+      <Border Classes="preview">
+        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço. Os offsets ficam só nesta janela; nada é enviado à GPU." />
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4" VerticalAlignment="Center">
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="Offset de clock da GPU aplicado em cada modo. O padrão da Acer para este modelo só acelera no Turbo (+100 MHz no núcleo, +200 MHz na memória)." />
+          <!-- Limites PROVISÓRIOS: revisar com teste de estabilidade antes de integrar (ver GpuViewModel). -->
+          <TextBlock Classes="label" Text="Núcleo de −300 a +200 MHz · memória de −500 a +500 MHz (limites provisórios)." />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="nav" Content="Padrão Acer" Command="{Binding RestoreAcerDefaultsCommand}" HorizontalContentAlignment="Center" />
+          <Button Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+        </StackPanel>
+      </Grid>
+
+      <Border Classes="card" Padding="0">
+        <StackPanel>
+          <!-- Cabeçalho -->
+          <Grid ColumnDefinitions="*,170,170,140" Margin="18,14">
+            <TextBlock Classes="label" Text="Modo" />
+            <TextBlock Grid.Column="1" Classes="label" Text="Núcleo (MHz)" />
+            <TextBlock Grid.Column="2" Classes="label" Text="Memória (MHz)" />
+            <TextBlock Grid.Column="3" Classes="label" Text="Padrão Acer" HorizontalAlignment="Right" />
+          </Grid>
+          <ItemsControl ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:GpuOffsetRowViewModel">
+                <Border BorderBrush="{StaticResource KsLineBrush}" BorderThickness="0,1,0,0" Padding="18,10">
+                  <Grid ColumnDefinitions="*,170,170,140">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Mode}" FontSize="15" />
+                      <TextBlock Text="alterado" FontSize="11" Foreground="{StaticResource KsWarnBrush}" VerticalAlignment="Center"
+                                 IsVisible="{Binding !IsAcerDefault}" />
+                    </StackPanel>
+                    <NumericUpDown Grid.Column="1" Minimum="-300" Maximum="200" Increment="5" FormatString="+0;-0;0"
+                                   Value="{Binding Core}" Width="150" HorizontalAlignment="Left" />
+                    <NumericUpDown Grid.Column="2" Minimum="-500" Maximum="500" Increment="25" FormatString="+0;-0;0"
+                                   Value="{Binding Memory}" Width="150" HorizontalAlignment="Left" />
+                    <TextBlock Grid.Column="3" Classes="label" VerticalAlignment="Center" HorizontalAlignment="Right">
+                      <Run Text="{Binding AcerCore, StringFormat='{}{0:+0;-0;0}'}" />
+                      <Run Text=" / " />
+                      <Run Text="{Binding AcerMemory, StringFormat='{}{0:+0;-0;0}'}" />
+                    </TextBlock>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="Como funciona" />
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="O offset vai para o driver da NVIDIA, não para o firmware da Acer. A GPU sobe ou desce o clock em todos os estados de energia pelo mesmo valor." />
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="Offset alto demais pode travar jogos ou mostrar artefatos na imagem. Suba aos poucos e teste em cada passo." />
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="Eco não aparece aqui: o padrão da Acer não define offset para ele." />
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsWarnBrush}"
+                 IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             x:Class="KillerSense.App.Views.BatteryView"
+             x:DataType="vm:BatteryViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+      <Border Classes="preview">
+        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço. Só a fonte de energia é real; carga, saúde e ciclos são valores de exemplo. Nada é enviado ao notebook." />
+      </Border>
+
+      <Grid ColumnDefinitions="*,16,*,16,*">
+        <!-- Carga -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="label" Text="Carga" />
+            <TextBlock Classes="big" Text="{Binding ChargePercent, StringFormat='{}{0:0}%'}" />
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding ChargePercent}" Height="6" CornerRadius="3"
+                         Foreground="{StaticResource KsAccentBrush}" />
+            <TextBlock Classes="label" Text="{Binding ChargeStateText}" />
+          </StackPanel>
+        </Border>
+        <!-- Fonte -->
+        <Border Grid.Column="2" Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="label" Text="Fonte de energia" />
+            <TextBlock Classes="big" FontSize="26" Text="{Binding PowerSourceText}" TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="label" TextWrapping="Wrap"
+                       Text="Na bateria, só Equilibrado e Eco ficam disponíveis (tela Modos)." />
+          </StackPanel>
+        </Border>
+        <!-- Saúde -->
+        <Border Grid.Column="4" Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="label" Text="Saúde" />
+            <TextBlock Classes="big" Text="{Binding HealthPercent, StringFormat='{}{0:0}%'}" />
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
+              <TextBlock Classes="label" Text="Capacidade atual" />
+              <TextBlock Grid.Column="1" Classes="value" Text="{Binding FullCapacityWh, StringFormat='{}{0:0.0} Wh'}" />
+              <TextBlock Grid.Row="1" Classes="label" Text="Capacidade de fábrica" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding DesignCapacityWh, StringFormat='{}{0:0.0} Wh'}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="Ciclos de carga" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding CycleCount}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- Limite de carga -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Limitar a carga em 80%" />
+              <TextBlock Classes="label" TextWrapping="Wrap"
+                         Text="Para de carregar em 80% quando o notebook fica muito tempo na tomada. Prolonga a vida útil da bateria. É o mesmo recurso do Acer Care Center; o firmware só oferece 80%." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding LimitCharge}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="label" TextWrapping="Wrap"
+                     Text="O killer-sense não segura essa opção: se o Care Center mudar, esta tela só mostra o estado real." />
+          <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsWarnBrush}"
+                     IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,153 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KillerSense.App.ViewModels"
+             x:Class="KillerSense.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <UserControl.Styles>
+    <Style Selector="Button.accent">
+      <Setter Property="Width" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="CornerRadius" Value="999" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.accent.on /template/ ContentPresenter">
+      <Setter Property="BorderBrush" Value="{StaticResource KsTextBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer>
+    <StackPanel Margin="24,22" Spacing="16">
+      <Border Classes="preview">
+        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço nem grava nada. As opções ficam só nesta janela." />
+      </Border>
+
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="label" VerticalAlignment="Center" Text="Preferências do killer-sense." />
+        <Button Grid.Column="1" Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+      </Grid>
+
+      <Grid ColumnDefinitions="*,16,*">
+        <StackPanel Spacing="16">
+          <!-- Geral -->
+          <Border Classes="card">
+            <StackPanel Spacing="16">
+              <TextBlock Classes="h2" Text="Geral" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Iniciar com o Windows" />
+                  <TextBlock Classes="label" TextWrapping="Wrap" Text="Abre o ícone da bandeja ao entrar no Windows. O serviço das fans sobe sozinho de qualquer jeito." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartWithWindows}" VerticalAlignment="Center" />
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" IsEnabled="{Binding StartWithWindows}">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Iniciar só na bandeja" />
+                  <TextBlock Classes="label" TextWrapping="Wrap" Text="Não abre a janela ao iniciar com o Windows." />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding StartInTray}" VerticalAlignment="Center" />
+              </Grid>
+              <TextBlock Classes="label" TextWrapping="Wrap"
+                         Text="Fechar a janela deixa o killer-sense na bandeja. Para devolver o controle ao PredatorSense, use “Encerrar killer-sense” no menu da bandeja." />
+            </StackPanel>
+          </Border>
+
+          <!-- Unidades -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Unidades" />
+              <StackPanel Orientation="Horizontal" Spacing="24">
+                <RadioButton GroupName="units" Content="Celsius (°C)" IsChecked="{Binding UseCelsius}" />
+                <RadioButton GroupName="units" Content="Fahrenheit (°F)" IsChecked="{Binding UseFahrenheit}" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Aparência -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Aparência" />
+              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="Tema" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24">
+                  <RadioButton GroupName="theme" Content="Grafite (escuro)" IsChecked="True" />
+                  <RadioButton GroupName="theme" Content="Claro (em breve)" IsEnabled="False" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="Cor de destaque" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                  <ItemsControl ItemsSource="{Binding Accents}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" Spacing="10" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:AccentViewModel">
+                        <Button Classes="accent" Classes.on="{Binding IsSelected}" Command="{Binding SelectCommand}" ToolTip.Tip="{Binding Name}">
+                          <Button.Background><SolidColorBrush Color="{Binding Color}" /></Button.Background>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="label" Text="{Binding SelectedAccent.Name}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Spacing="16">
+          <!-- Serviço -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Serviço" />
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="Intervalo do controle" VerticalAlignment="Center" />
+                <Slider Grid.Column="1" Minimum="0.5" Maximum="2" TickFrequency="0.5" IsSnapToTickEnabled="True" Value="{Binding LoopIntervalSeconds}" />
+                <TextBlock Grid.Column="2" Text="{Binding LoopIntervalSeconds, StringFormat='{}{0:0.0} s'}" VerticalAlignment="Center" Width="44" />
+              </Grid>
+              <TextBlock Classes="label" TextWrapping="Wrap"
+                         Text="De quanto em quanto tempo o serviço lê as temperaturas e ajusta as fans. Menor = reage mais rápido, gasta um pouco mais de CPU." />
+            </StackPanel>
+          </Border>
+
+          <!-- Logs -->
+          <Border Classes="card">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Logs" />
+              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="Nível" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" ItemsSource="{Binding LogLevels}" SelectedIndex="{Binding LogLevelIndex}" HorizontalAlignment="Stretch" />
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="C:\ProgramData\KillerSense\logs" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <Button Grid.Column="1" Classes="nav" Content="Abrir pasta" Command="{Binding OpenLogsCommand}" HorizontalContentAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <!-- Sobre -->
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="Sobre" />
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="6">
+                <TextBlock Classes="label" Text="Versão" />
+                <TextBlock Grid.Column="1" Classes="value" Text="{Binding Version}" />
+                <TextBlock Grid.Row="1" Classes="label" Text="Notebook" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="Predator PHN16-72" />
+              </Grid>
+              <TextBlock Classes="label" TextWrapping="Wrap"
+                         Text="killer-sense não é da Acer. O PredatorSense continua instalado; o killer-sense detecta quando ele assume e não briga." />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsWarnBrush}"
+                 IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
