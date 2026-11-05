@@ -234,7 +234,7 @@ Nenhum modo mexeu no comportamento das fans (sempre `0x41` Auto) nem nos % do Cu
 | CPU PL2 (estático/dinâmico) | 157 W / 157 W |
 | GPU limite de potência nominal / máximo | 80 W / 140 W |
 | GPU limite térmico | 87 °C |
-Os outros modos ainda não foram medidos → teste A18.
+Os outros modos: ver o teste A18 (o PL1 dinâmico muda por modo; o resto, não).
 
 ### Teste A12 — tecla de modos (perto do alto-falante, fora do teclado)
 - O app tem uma opção para o comportamento da tecla (diálogo "Tecla comutação de modo", depois na página Cenário):
@@ -539,6 +539,24 @@ Ferramenta: `HwTests mode --set <modo> [--watch S]` (só aceita o subcomando 0x0
 - Os valores de PL1/PL2 de cada modo não foram anotados; continuam no A18.
 - Achado lateral: com o controle pausado o serviço não chama o firmware e mostra o último modo lido (13:47:19 mostrou "Balanced" já em Performance).
 
+### Teste A18 — o que cada modo muda (2026-11-06 20:27–20:30, na tomada, repouso, modos trocados pelo killer-sense)
+Log do HWiNFO a cada 2 s (`Downloads\a18.CSV`, fora do repositório); horários das trocas tirados do log do serviço. Primeiros 6 s de cada modo descartados.
+
+| Modo | PL1 dinâmico | PL1 estático | PL2 (est./din.) | GPU limite nominal / máx. | GPU limite térmico |
+|---|---|---|---|---|---|
+| Silencioso | **55 W** | 115 W | 157 / 157 W | 80 / 140 W | 87 °C |
+| Equilibrado | **85 W** | 115 W | 157 / 157 W | 80 / 140 W | 87 °C |
+| Desempenho | **95 W** | 115 W | 157 / 157 W | 80 / 140 W | 87 °C |
+| Turbo | **115 W** | 115 W | 157 / 157 W | 80 / 140 W | 87 °C |
+
+- **CONFIRMADO:** na tomada, o modo muda só o **PL1 dinâmico** da CPU (o limite sustentado que o Intel DTT aplica). O PL1 estático (115 W) é o teto do BIOS e o Turbo usa ele inteiro. O PL2 (157 W, picos curtos) é o mesmo em todos.
+- **CONFIRMADO:** os limites da GPU informados pelo driver não mudam com o modo. Se o Dynamic Boost libera mais potência real para a GPU nos modos mais altos é **SUPOSIÇÃO**: só aparece com a GPU em carga.
+- Em repouso o consumo e os clocks não mudam com o modo (CPU ~33–38 W, clock efetivo médio ~200–280 MHz): a carga não chega perto de nenhum limite. A diferença só aparece em carga sustentada.
+- **CONFIRMADO: o contador "Medidor de Energia" do Windows (`rapl_package0_pkg`, energia em pWh) dá a potência do pacote da CPU sem admin nem driver.** Comparado com "Potência total da CPU" do HWiNFO nos mesmos intervalos: 37,7 × 38, 38,2 × 38, 34,2 × 34, 32,7 × 33 W.
+- O contador "Frequência Real" do Windows (~4,77 GHz aqui) é o clock dos núcleos ativos, o mesmo tipo de número que o PredatorSense mostra (4771 MHz na tela de modos). O clock efetivo médio do HWiNFO conta os núcleos parados e fica muito menor.
+- O HWiNFO não mostra a rotação das fans deste modelo; o RPM vem do killer-sense (WMI).
+- Faltam: Equilibrado e Eco **na bateria**, e uma carga curta em cada modo para ver o PL1 agindo.
+
 ## Testes adiados (fazer quando possível)
 | # | Teste | Requisito | Por que foi adiado | O que esperamos ver |
 |---|---|---|---|---|
@@ -553,7 +571,7 @@ Ferramenta: `HwTests mode --set <modo> [--watch S]` (só aceita o subcomando 0x0
 | A9 | Teclado: trocar cor, efeito e brilho | — | **adiado pelo usuário (2026-11-05)** | confirmar `KBBP` = brilho, `KBLE` = efeito. Roteiro: estático com zonas vermelho/verde/azul/branco e brilho 50; depois Onda variando velocidade e direção; depois outros efeitos e luz desligada |
 | ~~A10~~ | ~~Custom com valores diferentes~~ | — | **feito 2026-11-05 (10/40)** | `C1FR` = CPU, `G1FR` = GPU |
 | ~~A11~~ | ~~`CTML` × HWiNFO~~ | — | **feito 2026-11-05** | `CTML` = temperatura da CPU |
-| A18 | O que cada modo faz: PL1/PL2 da CPU, limites de potência e térmico da GPU, clocks e offsets | HWiNFO gravando log em cada modo (Silencioso, Equilibrado, Desempenho, Turbo; Eco na bateria) | não medido | tabela por modo |
+| A18 | O que cada modo faz: PL1/PL2 da CPU, limites de potência e térmico da GPU, clocks e offsets | HWiNFO gravando log em cada modo | **na tomada feito 2026-11-06**; falta a bateria (Equilibrado/Eco) e um teste com carga | PL1 55/85/95/115 W; resto igual |
 | A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
