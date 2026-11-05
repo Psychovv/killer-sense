@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:KillerSense.App.ViewModels"
+             xmlns:c="using:KillerSense.App.Controls"
              x:Class="KillerSense.App.Views.ModesView"
              x:DataType="vm:ModesViewModel">
   <UserControl.Styles>
@@ -71,6 +72,66 @@
       <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
                  Foreground="{Binding StatusIsError, Converter={x:Static vm:Converters.ErrorBrush}}"
                  IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+      <!-- Ao vivo -->
+      <Grid ColumnDefinitions="*,16,*" DataContext="{Binding Stats}" x:DataType="vm:ModeStatsViewModel">
+        <!-- CPU -->
+        <Border Classes="card">
+          <Grid ColumnDefinitions="170,22,*">
+            <Panel Width="170" Height="170">
+              <c:Gauge Value="{Binding CpuClock}" Maximum="{x:Static vm:ModeStatsViewModel.CpuMaxClockMhz}" Thickness="11"
+                       TrackBrush="{StaticResource KsCard2Brush}" ValueBrush="{StaticResource KsAccentBrush}" />
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="label" Text="CPU" HorizontalAlignment="Center" />
+                <TextBlock Classes="big" FontSize="30" Text="{Binding CpuClockText}" HorizontalAlignment="Center" />
+                <TextBlock Classes="label" Text="MHz" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Panel>
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
+              <TextBlock Classes="label" Text="Uso" />
+              <TextBlock Grid.Column="1" Classes="value" Text="{Binding CpuUsageText}" />
+              <TextBlock Grid.Row="1" Classes="label" Text="Potência" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding CpuPowerText}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="Limite sustentado do modo" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding CpuLimitText}" />
+              <TextBlock Grid.Row="3" Classes="label" Text="Temperatura" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding CpuTemperatureText}" />
+            </Grid>
+          </Grid>
+        </Border>
+        <!-- GPU -->
+        <Border Grid.Column="2" Classes="card">
+          <Grid ColumnDefinitions="170,22,*">
+            <Panel Width="170" Height="170">
+              <c:Gauge Value="{Binding GpuClock}" Maximum="{x:Static vm:ModeStatsViewModel.GpuMaxClockMhz}" Thickness="11"
+                       TrackBrush="{StaticResource KsCard2Brush}" ValueBrush="{StaticResource KsAccent2Brush}" />
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Classes="label" Text="GPU" HorizontalAlignment="Center" />
+                <TextBlock Classes="big" FontSize="30" Text="{Binding GpuClockText}" HorizontalAlignment="Center" />
+                <TextBlock Classes="label" Text="MHz" HorizontalAlignment="Center" />
+              </StackPanel>
+            </Panel>
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="10">
+              <TextBlock Classes="label" TextWrapping="Wrap" IsVisible="{Binding !GpuAwake}"
+                         Text="GPU dormindo (Optimus): o killer-sense não a acorda só para ler. Os dados aparecem quando um programa usar a GPU." />
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="10" IsVisible="{Binding GpuAwake}">
+                <TextBlock Classes="label" Text="Uso" />
+                <TextBlock Grid.Column="1" Classes="value" Text="{Binding GpuUsageText}" />
+                <TextBlock Grid.Row="1" Classes="label" Text="Potência (limite do driver)" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding GpuPowerText}" />
+                <TextBlock Grid.Row="2" Classes="label" Text="Memória" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding GpuMemoryClockText}" />
+                <TextBlock Grid.Row="3" Classes="label" Text="Temperatura" />
+                <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding GpuTemperatureText}" />
+                <TextBlock Grid.Row="4" Classes="label" Text="Estado de energia" />
+                <TextBlock Grid.Row="4" Grid.Column="1" Classes="value" Text="{Binding GpuStateText}" />
+              </Grid>
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+      <TextBlock Classes="label" TextWrapping="Wrap"
+                 Text="Clock e potência ao vivo. O limite sustentado de cada modo foi medido com o HWiNFO (teste A18); o Windows não deixa ler esse limite sem driver. Os limites da GPU são os mesmos em todos os modos." />
     </StackPanel>
   </ScrollViewer>
 </UserControl>

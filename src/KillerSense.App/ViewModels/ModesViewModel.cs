@@ -20,19 +20,25 @@ public sealed partial class ModesViewModel : ObservableObject
     {
         _client = client;
         _dashboard = dashboard;
+        Stats = new ModeStatsViewModel(dashboard);
+        // Limites medidos no teste A18 (na tomada): o modo muda só o limite sustentado da CPU (PL1);
+        // pico curto (PL2) de 157 W e limites da GPU iguais em todos.
         Cards =
         [
-            new(this, OperatingMode.Quiet, "Silencioso", "Menos potência e menos barulho. Na tomada."),
-            new(this, OperatingMode.Balanced, "Equilibrado", "O padrão do notebook. Na tomada e na bateria."),
-            new(this, OperatingMode.Performance, "Desempenho", "Mais potência para CPU e GPU. Só na tomada; fan da CPU com mínimo de 15% na curva."),
-            new(this, OperatingMode.Turbo, "Turbo", "Potência máxima. Só na tomada; fan da CPU com mínimo de 30% na curva. Sem o overclock de GPU do PredatorSense."),
-            new(this, OperatingMode.Eco, "Eco", "Economia de bateria. Só na bateria."),
+            new(this, OperatingMode.Quiet, "Silencioso", "CPU sustentada até 55 W: menos calor e barulho em carga longa. Só na tomada."),
+            new(this, OperatingMode.Balanced, "Equilibrado", "CPU sustentada até 85 W. O padrão do notebook. Na tomada e na bateria."),
+            new(this, OperatingMode.Performance, "Desempenho", "CPU sustentada até 95 W. Só na tomada; fan da CPU com mínimo de 15% na curva."),
+            new(this, OperatingMode.Turbo, "Turbo", "CPU sustentada até 115 W, o máximo. Só na tomada; fan da CPU com mínimo de 30% na curva. Sem o overclock de GPU do PredatorSense."),
+            new(this, OperatingMode.Eco, "Eco", "Economia de bateria (limites ainda não medidos). Só na bateria."),
         ];
         _dashboard.PropertyChanged += OnDashboardChanged;
         Refresh();
     }
 
     public IReadOnlyList<ModeCardViewModel> Cards { get; }
+
+    /// <summary>Painel ao vivo de CPU e GPU abaixo dos cartões.</summary>
+    public ModeStatsViewModel Stats { get; }
 
     [ObservableProperty] public partial string PowerText { get; set; } = "";
     [ObservableProperty] public partial string? Notice { get; set; }

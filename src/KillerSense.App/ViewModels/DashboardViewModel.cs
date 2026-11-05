@@ -67,6 +67,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty] public partial bool IsDisabled { get; set; }
     [ObservableProperty] public partial bool? ChargeLimitOn { get; set; }
 
+    /// <summary>Clocks, uso e potência da GPU (só com ela ligada); null = desligada ou sem dados.</summary>
+    [ObservableProperty] public partial GpuTelemetry? GpuStats { get; set; }
+
     /// <summary>Cliente compartilhado com as outras telas.</summary>
     public ServiceClient Client => _client;
     [ObservableProperty] public partial string StateText { get; set; } = "—";
@@ -144,6 +147,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
         IsDisabled = s.State == EngineState.Disabled;
         OnAc = s.OnAc;
         ChargeLimitOn = s.ChargeLimitOn;
+        GpuStats = s.Gpu;
         IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault or EngineState.Disabled;
         Push(_cpuHistory, s.CpuTemperature);
         Push(_gpuHistory, s.GpuTemperature);
