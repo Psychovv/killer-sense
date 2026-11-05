@@ -141,11 +141,13 @@ public sealed record ServiceState(
     int? GpuFanRpm,
     string? Message,
     bool? OnAc = null,
-    bool? ChargeLimitOn = null)
+    bool? ChargeLimitOn = null,
+    GpuTelemetry? Gpu = null)
 {
     /// <param name="onAc">Fonte de energia (true = tomada); null = desconhecida.</param>
     /// <param name="chargeLimitOn">Limite de carga de 80%; null = desconhecido (desativado, sem leitura).</param>
-    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null, bool? chargeLimitOn = null)
+    /// <param name="gpu">Clocks, uso e potência da GPU (só com ela ligada); null = desligada ou sem dados.</param>
+    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null, bool? chargeLimitOn = null, GpuTelemetry? gpu = null)
     {
         ArgumentNullException.ThrowIfNull(s);
         return new(
@@ -163,7 +165,8 @@ public sealed record ServiceState(
             s.GpuFanRpm,
             s.Message,
             onAc,
-            chargeLimitOn);
+            chargeLimitOn,
+            gpu);
     }
 }
 

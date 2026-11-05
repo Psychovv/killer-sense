@@ -66,7 +66,7 @@ public sealed class NvidiaGpuSensor : IGpuSensor, IDisposable
                 }
 
                 return NativeMethods.NvmlDeviceGetTemperature(_device, NativeMethods.NvmlTemperatureGpu, out var t) == NativeMethods.NvmlSuccess
-                    ? GpuReading.Value(t)
+                    ? GpuReading.Value(t, ReadTelemetry(_device))
                     : GpuReading.Error;
             }
             catch (DllNotFoundException)
@@ -78,6 +78,22 @@ public sealed class NvidiaGpuSensor : IGpuSensor, IDisposable
                 return GpuReading.Error;
             }
         }
+    }
+
+    /// <summary>
+    /// Clocks, uso e potência para o painel. Só é chamado com a GPU ligada (D0) e a sessão do NVML já
+    /// aberta para a temperatura; cada valor que o driver não informa fica null.
+    /// </summary>
+    private static GpuTelemetry ReadTelemetry(nint device)
+    {
+        const int ok = NativeMethods.NvmlSuccess;
+        int? core = NativeMethods.NvmlDeviceGetClockInfo(device, NativeMethods.NvmlClockGraphics, out var c) == ok ? (int)c : null;
+        int? mem = NativeMethods.NvmlDeviceGetClockInfo(device, NativeMethods.NvmlClockMem, out var m) == ok ? (int)m : null;
+        int? util = NativeMethods.NvmlDeviceGetUtilizationRates(device, out var u) == ok ? (int)Math.Min(u.Gpu, 100) : null;
+        double? power = NativeMethods.NvmlDeviceGetPowerUsage(device, out var p) == ok ? p / 1000.0 : null;
+        double? limit = NativeMethods.NvmlDeviceGetEnforcedPowerLimit(device, out var l) == ok ? l / 1000.0 : null;
+        int? pState = NativeMethods.NvmlDeviceGetPerformanceState(device, out var s) == ok && s is >= 0 and < NativeMethods.NvmlPStateUnknown ? s : null;
+        return new GpuTelemetry(core, mem, util, power, limit, pState);
     }
 
     /// <summary>Estado de energia mais recente (1 = D0 … 4 = D3), ou null se não deu para ler.</summary>

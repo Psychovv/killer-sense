@@ -21,7 +21,11 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddSerilog(fileLogger);
 builder.Services.AddWindowsService(o => o.ServiceName = "KillerSense");
 builder.Services.AddSingleton<IAcerFirmware>(_ => simulated ? new SimulatedFirmware() : new AcerWmiFirmware());
-builder.Services.AddSingleton<IGpuSensor>(_ => simulated ? new SimulatedGpuSensor() : new KillerSense.Gpu.NvidiaGpuSensor());
+// --sim-gpu (só com --simulated): GPU simulada ligada, com clocks e potência, para testar a interface.
+var simGpu = simulated && args.Contains("--sim-gpu", StringComparer.Ordinal);
+builder.Services.AddSingleton<IGpuSensor>(_ => simulated
+    ? new SimulatedGpuSensor { Next = simGpu ? GpuReading.Value(47, new GpuTelemetry(1980, 8001, 12, 18.5, 80, 0)) : GpuReading.Off }
+    : new KillerSense.Gpu.NvidiaGpuSensor());
 builder.Services.AddSingleton(new HeartbeatOptions(simulated ? @"Local\KillerSense.Heartbeat.Simulated" : Heartbeat.DefaultName));
 builder.Services.AddSingleton(new IpcOptions(simulated ? KillerSense.Ipc.IpcProtocol.SimulatedPipeName : KillerSense.Ipc.IpcProtocol.PipeName));
 // Perfil: config.json (serviço) ou um arquivo à parte no modo simulado.

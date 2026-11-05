@@ -49,4 +49,36 @@ internal static unsafe partial class NativeMethods
     [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetTemperature")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     internal static partial int NvmlDeviceGetTemperature(nint device, int sensorType, out uint temperature);
+
+    // ---- NVML: só leitura, para o painel (nvml.h) ----
+    internal const int NvmlClockGraphics = 0;
+    internal const int NvmlClockMem = 2;
+    internal const int NvmlPStateUnknown = 32;
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct NvmlUtilization
+    {
+        public uint Gpu;
+        public uint Memory;
+    }
+
+    [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetClockInfo")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static partial int NvmlDeviceGetClockInfo(nint device, int clockType, out uint clockMhz);
+
+    [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetUtilizationRates")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static partial int NvmlDeviceGetUtilizationRates(nint device, out NvmlUtilization utilization);
+
+    [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetPowerUsage")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static partial int NvmlDeviceGetPowerUsage(nint device, out uint milliwatts);
+
+    [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetEnforcedPowerLimit")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static partial int NvmlDeviceGetEnforcedPowerLimit(nint device, out uint milliwatts);
+
+    [LibraryImport("nvml.dll", EntryPoint = "nvmlDeviceGetPerformanceState")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    internal static partial int NvmlDeviceGetPerformanceState(nint device, out int pState);
 }

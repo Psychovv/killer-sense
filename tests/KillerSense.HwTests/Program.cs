@@ -78,7 +78,7 @@ internal static class Program
         for (var i = 0; i < samples; i++)
         {
             var r = gpu.Read();
-            Log(r.PoweredOn ? (r.Temperature is { } t ? $"ligada (D0)  {t} °C" : "ligada (D0)  erro de leitura") : "desligada (não consultada)");
+            Log(r.PoweredOn ? (r.Temperature is { } t ? $"ligada (D0)  {t} °C  {r.Telemetry}" : "ligada (D0)  erro de leitura") : "desligada (não consultada)");
             if (i < samples - 1)
             {
                 Thread.Sleep(1000);

@@ -170,7 +170,8 @@ public sealed partial class FanControlWorker : BackgroundService
             {
                 var dt = sw.Elapsed.TotalSeconds;
                 sw.Restart();
-                var gpuTemp = _gpuFeed.Update(_gpu.Read()); // não acorda a GPU desligada
+                var gpuReading = _gpu.Read(); // não acorda a GPU desligada
+                var gpuTemp = _gpuFeed.Update(gpuReading);
                 EngineSnapshot snap;
                 bool? chargeLimit;
                 lock (_gate)
@@ -182,7 +183,7 @@ public sealed partial class FanControlWorker : BackgroundService
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
-                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power(), chargeLimit));
+                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power(), chargeLimit, gpuReading.Telemetry));
                 if (chargeLimit != _lastLoggedChargeLimit)
                 {
                     LogChargeLimitState(_log, chargeLimit);
