@@ -101,6 +101,15 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Achado na instalação: publicar sem `--self-contained` gera serviços que não sobem (o PC só tem .NET 6); publicar sempre com `-r win-x64 --self-contained true`.
 - Pendente: ver a carga parar em 80% depois de descarregar abaixo disso com o limite ligado.
 
+## Configurações
+
+### T12 — página Configurações (2026-11-06, simulado e depois a versão instalada)
+- Simulado: salvar grava `%APPDATA%\KillerSense\app.json` e cria o atalho `killer-sense.lnk` na pasta Inicializar com `--autostart --tray`; com °F o Painel mostra "Últimos 2 minutos (86–212 °F)" e a página Fans "Agora: 131 °F" (CPU a 55 °C). A cor de destaque muda na hora.
+- `--autostart` com o controle desativado ("Encerrar"): o serviço continua `Disabled` e a janela não abre; aberto pelo usuário, o controle volta.
+- Achado: na prévia as cinco amostras de cor saíam todas na cor do Windows (a classe `accent` colidia com o estilo de botão de destaque do Fluent). Renomeada para `swatch`.
+- Instalado: o usuário trocou unidade e cor, ligou o início com o Windows e abriu a pasta de logs. ✅ Atalho final: `C:\Program Files\KillerSense\App\KillerSense.exe --autostart --tray`.
+- Pendente: confirmar no próximo login que o app sobe só na bandeja.
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
