@@ -181,19 +181,52 @@ public sealed class CurveEditor : Control
         }
 
         var pos = e.GetPosition(this);
+        var hit = HitPoint(pts, pos);
+        if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
+        {
+            // Clique direito num ponto: remove (mínimo de pontos do serviço).
+            if (hit >= 0 && pts.Count > FanCurve.MinPoints)
+            {
+                Points = [.. pts.Where((_, k) => k != hit)];
+                e.Handled = true;
+            }
+
+            return;
+        }
+
+        if (hit >= 0)
+        {
+            _drag = hit;
+            e.Pointer.Capture(this);
+            InvalidateVisual();
+            e.Handled = true;
+            return;
+        }
+
+        // Duplo clique fora dos pontos: novo ponto na temperatura clicada, já em cima da curva
+        // (a forma não muda até arrastar).
+        var t = T(pos.X);
+        if (e.ClickCount == 2 && t >= MinT && t <= MaxT && FanCurve.WithPointAt(pts, t) is { } added)
+        {
+            Points = added;
+            e.Handled = true;
+        }
+    }
+
+    private int HitPoint(IReadOnlyList<CurvePoint> pts, Point pos)
+    {
         for (var i = 0; i < pts.Count; i++)
         {
             var c = new Point(X(pts[i].Temperature), Y(pts[i].Percent));
             if (Math.Abs(c.X - pos.X) <= 12 && Math.Abs(c.Y - pos.Y) <= 12)
             {
-                _drag = i;
-                e.Pointer.Capture(this);
-                InvalidateVisual();
-                e.Handled = true;
-                return;
+                return i;
             }
         }
+
+        return -1;
     }
+
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {

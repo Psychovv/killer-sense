@@ -71,6 +71,29 @@ public sealed class FanCurve
         return null;
     }
 
+    /// <summary>
+    /// Pontos com um a mais em <paramref name="temperature"/> (arredondada para °C inteiro), com a %
+    /// que a curva já tinha ali, ou seja, sem mudar a forma. Null se não cabe: limite de pontos, já
+    /// existe um ponto nessa temperatura ou o resultado seria inválido.
+    /// </summary>
+    public static CurvePoint[]? WithPointAt(IReadOnlyList<CurvePoint> points, double temperature)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+        var t = Math.Round(temperature);
+        if (points.Count is < MinPoints or >= MaxPoints || !double.IsFinite(t) || points.Any(p => Math.Abs(p.Temperature - t) < 1))
+        {
+            return null;
+        }
+
+        var list = points.ToList();
+        var index = list.Count(p => p.Temperature < t);
+        var percent = index == 0 ? list[0].Percent
+            : index == list.Count ? list[^1].Percent
+            : list[index - 1].Percent + ((list[index].Percent - list[index - 1].Percent) * (t - list[index - 1].Temperature) / (list[index].Temperature - list[index - 1].Temperature));
+        list.Insert(index, new CurvePoint(t, Math.Round(percent)));
+        return Validate(list) is null ? [.. list] : null;
+    }
+
     /// <summary>Interpolação linear da % para a temperatura dada.</summary>
     public double Evaluate(double temperature)
     {

@@ -1,4 +1,4 @@
-using KillerSense.Core;
+﻿using KillerSense.Core;
 using KillerSense.Firmware;
 
 namespace KillerSense.Tests;
@@ -26,6 +26,36 @@ public class FanCurveTests
         Assert.NotNull(FanCurve.Validate([new(0, 30), new(70, 40)]));              // temp 0
         Assert.NotNull(FanCurve.Validate([new(50, double.NaN), new(70, 40)]));     // NaN
         Assert.Null(FanCurve.Validate([new(50, 30), new(70, 30)]));                // plano é válido
+    }
+
+    [Fact]
+    public void Novo_ponto_fica_em_cima_da_curva()
+    {
+        var pts = Default().Points;
+        var added = FanCurve.WithPointAt(pts, 62.4); // arredonda para 62 °C
+        Assert.NotNull(added);
+        Assert.Equal(6, added.Length);
+        Assert.Equal(new CurvePoint(62, 40), added[2]); // 32 + (50 − 32) × 7/15 = 40,4 → 40
+        Assert.Equal(Default().Evaluate(62), FanCurve.Create(added).Evaluate(62), 0);
+        Assert.Null(FanCurve.Validate(added));
+    }
+
+    [Fact]
+    public void Novo_ponto_nas_pontas_repete_a_ponta()
+    {
+        var pts = Default().Points;
+        Assert.Equal(new CurvePoint(32, 25), FanCurve.WithPointAt(pts, 32)![0]);
+        Assert.Equal(new CurvePoint(98, 100), FanCurve.WithPointAt(pts, 98)![^1]);
+    }
+
+    [Fact]
+    public void Nao_adiciona_ponto_repetido_nem_acima_do_limite()
+    {
+        var pts = Default().Points;
+        Assert.Null(FanCurve.WithPointAt(pts, 55.3)); // já existe 55 °C
+        var full = Enumerable.Range(0, FanCurve.MaxPoints).Select(i => new CurvePoint(30 + (i * 7), 20 + (i * 8))).ToArray();
+        Assert.Null(FanCurve.Validate(full));
+        Assert.Null(FanCurve.WithPointAt(full, 33)); // já tem o máximo
     }
 }
 

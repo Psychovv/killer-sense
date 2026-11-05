@@ -11,7 +11,7 @@
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="4" VerticalAlignment="Center">
           <TextBlock Classes="label" TextWrapping="Wrap"
-                     Text="Abaixo da temperatura de entrada a fan fica no Auto do EC (silencioso). Acima dela, a curva assume. Arraste os pontos para editar." />
+                     Text="Abaixo da temperatura de entrada a fan fica no Auto do EC (silencioso). Acima dela, a curva assume. Arraste os pontos para editar; duplo clique na área do gráfico adiciona um ponto (até 10 por curva) e clique direito num ponto remove (mínimo 2)." />
           <TextBlock Classes="label" Text="{Binding FloorText}" />
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
