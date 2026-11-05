@@ -1,57 +1,82 @@
+﻿using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KillerSense.App.Platform;
+using KillerSense.App.Settings;
 
 namespace KillerSense.App.ViewModels;
 
 /// <summary>
-/// Tela Configurações (PRÉVIA, sem integração): início com o Windows, unidades, aparência, serviço, logs e
-/// sobre. As opções ficam só nesta janela; nada é gravado.
+/// Tela Configurações: iniciar com o Windows (atalho na pasta Inicializar), unidade de temperatura, cor de
+/// destaque, pasta de logs e sobre. Tudo só da interface: nada passa pelo serviço nem pelo firmware.
 /// </summary>
 public sealed partial class SettingsViewModel : ObservableObject
 {
+    public static readonly string LogsPath =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "KillerSense", "logs");
+
+    private bool _loading;
+
     public SettingsViewModel()
     {
         Accents =
         [
-            new(this, "Violeta", Color.Parse("#8B7BFF")),
-            new(this, "Ciano", Color.Parse("#5EC8FF")),
-            new(this, "Verde", Color.Parse("#4DD68B")),
-            new(this, "Laranja", Color.Parse("#FF9F4D")),
-            new(this, "Rosa", Color.Parse("#FF6BB5")),
+            new(this, "Violeta", AppSettings.DefaultAccent),
+            new(this, "Ciano", "#5EC8FF"),
+            new(this, "Verde", "#4DD68B"),
+            new(this, "Laranja", "#FF9F4D"),
+            new(this, "Rosa", "#FF6BB5"),
         ];
-        SelectedAccent = Accents[0];
         var version = typeof(SettingsViewModel).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "—";
         Version = version.Split('+')[0]; // sem o hash do commit
-        IsDirty = false;
+        SelectedAccent = Accents[0];
+        Reload();
     }
 
     public string Version { get; }
 
+    public string LogsFolder { get; } = LogsPath;
+
     public IReadOnlyList<AccentViewModel> Accents { get; }
 
-    public IReadOnlyList<string> LogLevels { get; } = ["Normal", "Detalhado (para diagnóstico)"];
-
     // Geral
-    [ObservableProperty] public partial bool StartWithWindows { get; set; } = true;
-    [ObservableProperty] public partial bool StartInTray { get; set; } = true;
+    [ObservableProperty] public partial bool StartWithWindows { get; set; }
+    [ObservableProperty] public partial bool StartInTray { get; set; }
 
     // Unidades
-    [ObservableProperty] public partial bool UseCelsius { get; set; } = true;
+    [ObservableProperty] public partial bool UseCelsius { get; set; }
     [ObservableProperty] public partial bool UseFahrenheit { get; set; }
 
     // Aparência
     [ObservableProperty] public partial AccentViewModel SelectedAccent { get; set; }
 
-    // Serviço: intervalo do laço de controle (0,5 a 2 s; padrão 1 s, arquitetura §5.2)
-    [ObservableProperty] public partial double LoopIntervalSeconds { get; set; } = 1;
-
-    // Logs
-    [ObservableProperty] public partial int LogLevelIndex { get; set; }
-
     [ObservableProperty] public partial bool IsDirty { get; set; }
     [ObservableProperty] public partial string? Status { get; set; }
+    [ObservableProperty] public partial bool StatusIsError { get; set; }
+
+    /// <summary>Mostra o que está valendo: o arquivo de preferências e o atalho que existe de fato.</summary>
+    public void Reload()
+    {
+        _loading = true;
+        try
+        {
+            var s = AppSettings.Current;
+            StartWithWindows = StartupShortcut.Exists;
+            StartInTray = s.StartInTray;
+            UseFahrenheit = s.Fahrenheit;
+            UseCelsius = !s.Fahrenheit;
+            SelectedAccent = Accents.FirstOrDefault(a => string.Equals(a.Hex, s.Accent, StringComparison.OrdinalIgnoreCase)) ?? Accents[0];
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        IsDirty = false;
+    }
 
     partial void OnSelectedAccentChanged(AccentViewModel oldValue, AccentViewModel newValue)
     {
@@ -72,25 +97,88 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnUseFahrenheitChanged(bool value) => Changed();
 
-    partial void OnLoopIntervalSecondsChanged(double value) => Changed();
-
-    partial void OnLogLevelIndexChanged(int value) => Changed();
-
     private void Changed()
     {
+        if (_loading)
+        {
+            return;
+        }
+
         IsDirty = true;
-        Status = null;
+        SetStatus(null, false);
     }
 
     [RelayCommand]
     private void Save()
     {
-        IsDirty = false;
-        Status = "Prévia: configurações guardadas só nesta janela. Nada foi gravado.";
+        var s = AppSettings.Current;
+        s.Fahrenheit = UseFahrenheit;
+        s.Accent = SelectedAccent.Hex;
+        s.StartInTray = StartInTray;
+        AccentColor.Apply(s.Accent);
+
+        var problems = new List<string>();
+        try
+        {
+            s.Save(AppSettings.DefaultPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            problems.Add($"não foi possível gravar as preferências ({ex.Message})");
+        }
+
+        try
+        {
+            if (StartWithWindows)
+            {
+                StartupShortcut.Create(StartInTray);
+            }
+            else
+            {
+                StartupShortcut.Delete();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or COMException or InvalidOperationException)
+        {
+            problems.Add($"não foi possível {(StartWithWindows ? "criar" : "apagar")} o atalho de inicialização ({ex.Message})");
+        }
+
+        Reload();
+        if (problems.Count == 0)
+        {
+            SetStatus("Configurações salvas.", false);
+        }
+        else
+        {
+            IsDirty = true;
+            SetStatus("Erro: " + string.Join("; ", problems) + ".", true);
+        }
     }
 
     [RelayCommand]
-    private void OpenLogs() => Status = "Prévia: abrir a pasta de logs (C:\\ProgramData\\KillerSense\\logs) ainda não está ligado.";
+    private void OpenLogs()
+    {
+        if (!Directory.Exists(LogsPath))
+        {
+            SetStatus($"A pasta {LogsPath} ainda não existe (o serviço cria ao iniciar).", true);
+            return;
+        }
+
+        try
+        {
+            using var _ = Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { LogsPath }, UseShellExecute = false });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            SetStatus($"Não foi possível abrir a pasta: {ex.Message}", true);
+        }
+    }
+
+    private void SetStatus(string? text, bool isError)
+    {
+        Status = text;
+        StatusIsError = isError;
+    }
 }
 
 /// <summary>Uma cor de destaque.</summary>
@@ -98,14 +186,17 @@ public sealed partial class AccentViewModel : ObservableObject
 {
     private readonly SettingsViewModel _owner;
 
-    public AccentViewModel(SettingsViewModel owner, string name, Color color)
+    public AccentViewModel(SettingsViewModel owner, string name, string hex)
     {
         _owner = owner;
         Name = name;
-        Color = color;
+        Hex = hex;
+        Color = Color.Parse(hex);
     }
 
     public string Name { get; }
+
+    public string Hex { get; }
 
     public Color Color { get; }
 

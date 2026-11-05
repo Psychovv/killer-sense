@@ -29,7 +29,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Iluminação", Lighting, isPreview: true),
             new(this, "Teclado e sistema", Keyboard, isPreview: true),
             new(this, "GPU", Gpu, isPreview: true),
-            new(this, "Configurações", Settings, isPreview: true),
+            new(this, "Configurações", Settings),
         ];
         CurrentNav = Pages[0];
     }
@@ -109,6 +109,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     internal async Task NavigateAsync(NavItemViewModel item)
     {
         CurrentNav = item;
+        if (item.Page == Settings && !Settings.IsDirty)
+        {
+            Settings.Reload(); // o atalho pode ter sido apagado por fora
+        }
+
         if (item.Page == Fans && !Fans.IsLoaded && Dashboard.IsConnected)
         {
             await Fans.LoadAsync().ConfigureAwait(true);

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KillerSense.App.Settings;
 using KillerSense.Core;
 using KillerSense.Ipc;
 
@@ -22,7 +23,33 @@ public sealed partial class FansViewModel : ObservableObject
         _client = client;
         _dashboard = dashboard;
         _dashboard.PropertyChanged += OnDashboardChanged;
+        AppSettings.Current.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AppSettings.Fahrenheit))
+            {
+                UpdateTemperatureTexts();
+            }
+        };
+        UpdateTemperatureTexts();
     }
+
+    // Textos na unidade escolhida (os valores continuam em °C).
+    [ObservableProperty] public partial string CpuNowText { get; set; } = "Agora: —";
+    [ObservableProperty] public partial string GpuNowText { get; set; } = "";
+    [ObservableProperty] public partial string CpuEntryText { get; set; } = "";
+    [ObservableProperty] public partial string GpuEntryText { get; set; } = "";
+
+    private void UpdateTemperatureTexts()
+    {
+        CpuNowText = "Agora: " + Temperatures.Text(CpuNow);
+        GpuNowText = GpuNow is null ? "GPU desligada: Auto do EC" : "Agora: " + Temperatures.Text(GpuNow);
+        CpuEntryText = Temperatures.Text(CpuEntryTemperature);
+        GpuEntryText = Temperatures.Text(GpuEntryTemperature);
+    }
+
+    partial void OnCpuNowChanged(double? value) => UpdateTemperatureTexts();
+
+    partial void OnGpuNowChanged(double? value) => UpdateTemperatureTexts();
 
     [ObservableProperty] public partial IReadOnlyList<CurvePoint>? CpuCurve { get; set; }
     [ObservableProperty] public partial IReadOnlyList<CurvePoint>? GpuCurve { get; set; }
@@ -44,9 +71,17 @@ public sealed partial class FansViewModel : ObservableObject
 
     partial void OnGpuCurveChanged(IReadOnlyList<CurvePoint>? value) => MarkDirty();
 
-    partial void OnCpuEntryTemperatureChanged(double value) => MarkDirty();
+    partial void OnCpuEntryTemperatureChanged(double value)
+    {
+        UpdateTemperatureTexts();
+        MarkDirty();
+    }
 
-    partial void OnGpuEntryTemperatureChanged(double value) => MarkDirty();
+    partial void OnGpuEntryTemperatureChanged(double value)
+    {
+        UpdateTemperatureTexts();
+        MarkDirty();
+    }
 
     partial void OnHysteresisChanged(decimal value) => MarkDirty();
 

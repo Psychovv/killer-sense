@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using KillerSense.App.Settings;
 using KillerSense.Core;
 
 namespace KillerSense.App.Controls;
@@ -123,7 +124,7 @@ public sealed class CurveEditor : Control
         for (var t = 30; t <= 100; t += 10)
         {
             ctx.DrawLine(line, new Point(X(t), Y(100)), new Point(X(t), Y(0)));
-            Text(ctx, $"{t}°", X(t), h - 18, muted, center: true);
+            Text(ctx, Temperatures.Number(t) + "°", X(t), h - 18, muted, center: true);
         }
 
         for (var p = 0; p <= 100; p += 25)
@@ -160,7 +161,7 @@ public sealed class CurveEditor : Control
             {
                 var d = pts[_drag];
                 var rpm = RpmBase + (RpmPerPercent * d.Percent);
-                Text(ctx, $"{d.Temperature:0} °C → {d.Percent:0}%  (~{rpm.ToString("N0", Pt)} rpm)", Math.Min(X(d.Temperature) + 12, w - 230), Y(d.Percent) - 26, Brushes.White);
+                Text(ctx, $"{Temperatures.Text(d.Temperature)} → {d.Percent:0}%  (~{rpm.ToString("N0", Pt)} rpm)", Math.Min(X(d.Temperature) + 12, w - 230), Y(d.Percent) - 26, Brushes.White);
             }
         }
 

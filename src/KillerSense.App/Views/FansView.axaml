@@ -31,7 +31,7 @@
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="Fan da CPU" FontSize="16" FontWeight="SemiBold" />
               <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center"
-                         Text="{Binding CpuNow, StringFormat='Agora: {0:0} °C', TargetNullValue='Agora: —'}" />
+                         Text="{Binding CpuNowText}" />
             </Grid>
             <c:CurveEditor Height="270" Points="{Binding CpuCurve}" EntryTemperature="{Binding CpuEntryTemperature}"
                            Floor="{Binding Floor}" CurrentTemperature="{Binding CpuNow}"
@@ -39,7 +39,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
               <TextBlock Classes="label" Text="Entrada" VerticalAlignment="Center" />
               <Slider Grid.Column="1" Minimum="30" Maximum="90" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CpuEntryTemperature}" />
-              <TextBlock Grid.Column="2" Text="{Binding CpuEntryTemperature, StringFormat='{}{0:0} °C'}" VerticalAlignment="Center" Width="48" />
+              <TextBlock Grid.Column="2" Text="{Binding CpuEntryText}" VerticalAlignment="Center" Width="56" />
             </Grid>
           </StackPanel>
         </Border>
@@ -49,7 +49,7 @@
             <Grid ColumnDefinitions="*,Auto">
               <TextBlock Text="Fan da GPU" FontSize="16" FontWeight="SemiBold" />
               <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center"
-                         Text="{Binding GpuNow, StringFormat='Agora: {0:0} °C', TargetNullValue='GPU desligada: Auto do EC'}" />
+                         Text="{Binding GpuNowText}" />
             </Grid>
             <c:CurveEditor Height="270" Points="{Binding GpuCurve}" EntryTemperature="{Binding GpuEntryTemperature}"
                            Floor="{Binding Floor}" CurrentTemperature="{Binding GpuNow}"
@@ -57,7 +57,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
               <TextBlock Classes="label" Text="Entrada" VerticalAlignment="Center" />
               <Slider Grid.Column="1" Minimum="30" Maximum="90" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding GpuEntryTemperature}" />
-              <TextBlock Grid.Column="2" Text="{Binding GpuEntryTemperature, StringFormat='{}{0:0} °C'}" VerticalAlignment="Center" Width="48" />
+              <TextBlock Grid.Column="2" Text="{Binding GpuEntryText}" VerticalAlignment="Center" Width="56" />
             </Grid>
           </StackPanel>
         </Border>

@@ -5,6 +5,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform;
 using Avalonia.Threading;
+using KillerSense.App.Platform;
+using KillerSense.App.Settings;
 using KillerSense.App.ViewModels;
 using KillerSense.App.Views;
 using KillerSense.Ipc;
@@ -33,10 +35,17 @@ public sealed class App : Application, IDisposable
 
             // --simulated: conecta no serviço rodando com firmware simulado (desenvolvimento).
             var pipe = desktop.Args?.Contains("--simulated") == true ? IpcProtocol.SimulatedPipeName : IpcProtocol.PipeName;
+            AccentColor.Apply(AppSettings.Current.Accent);
             _main = new MainViewModel(new ServiceClient(pipe));
             _main.Dashboard.PropertyChanged += UpdateTooltip;
             _main.Start();
-            _main.EnableOnFirstConnection(); // abrir o killer-sense = controle ativo
+            // Abrir o killer-sense = controle ativo. Aberto pelo Windows (--autostart) respeita o último
+            // "Encerrar killer-sense": não retoma sozinho.
+            if (desktop.Args?.Contains(StartupShortcut.AutostartArg) != true)
+            {
+                _main.EnableOnFirstConnection();
+            }
+
             CreateTray();
 
             // --tray: inicia só na bandeja (ex.: com o Windows).
@@ -130,7 +139,7 @@ public sealed class App : Application, IDisposable
 
         var d = _main.Dashboard;
         _tray.ToolTipText = d.IsConnected
-            ? $"killer-sense — {d.StateText} · CPU {d.CpuTemperatureText} °C"
+            ? $"killer-sense — {d.StateText} · CPU {d.CpuTemperatureText} {Temperatures.Unit}"
             : "killer-sense — serviço indisponível";
     }
 }

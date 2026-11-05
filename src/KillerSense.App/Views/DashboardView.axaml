@@ -20,7 +20,7 @@
                 <TextBlock Classes="label" Text="CPU" HorizontalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                   <TextBlock Classes="big" Text="{Binding CpuTemperatureText}" />
-                  <TextBlock Classes="label" Text=" °C" FontSize="15" VerticalAlignment="Bottom" Margin="0,0,0,7" />
+                  <TextBlock Classes="label" Text="{Binding TemperatureUnitLabel}" FontSize="15" VerticalAlignment="Bottom" Margin="0,0,0,7" />
                 </StackPanel>
                 <TextBlock Classes="label" Text="i7-14700HX" HorizontalAlignment="Center" />
               </StackPanel>
@@ -43,7 +43,7 @@
                 <TextBlock Classes="label" Text="GPU" HorizontalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                   <TextBlock Classes="big" Text="{Binding GpuTemperatureText}" />
-                  <TextBlock Classes="label" Text=" °C" FontSize="15" VerticalAlignment="Bottom" Margin="0,0,0,7" />
+                  <TextBlock Classes="label" Text="{Binding TemperatureUnitLabel}" FontSize="15" VerticalAlignment="Bottom" Margin="0,0,0,7" />
                 </StackPanel>
                 <TextBlock Classes="label" Text="RTX 4070 Laptop" HorizontalAlignment="Center" />
               </StackPanel>
@@ -62,7 +62,7 @@
       <Border Classes="card">
         <StackPanel Spacing="10">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Classes="label" Text="Últimos 2 minutos (30–100 °C)" />
+            <TextBlock Classes="label" Text="{Binding HistoryRangeText}" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Border Width="10" Height="3" Background="{StaticResource KsAccentBrush}" VerticalAlignment="Center" />
