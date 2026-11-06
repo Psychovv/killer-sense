@@ -120,6 +120,53 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Instalado (21:04): o serviço publica `gpu {coreClockMhz 330, memoryClockMhz 405, powerWatts 3,1, powerLimitWatts 75, performanceState 8}`; o usuário trocou de modo e o limite sustentado acompanhou. ✅
 - Pendente: com o HWiNFO fechado (ele mesmo mantém a GPU acordada), confirmar que a GPU ainda dorme com o killer-sense rodando (as leituras extras só acontecem em D0, junto com a temperatura).
 
+## Fase 4.3 — GPU
+
+### T15 — offset da GPU por modo (2026-11-06, simulado; hardware pendente)
+
+**`HwTests gpu-oc` no hardware, sem admin:**
+- `GetPstates20` responde.
+- O P0 é editável: núcleo de −1000 a +1000, memória de −1000 a +3000.
+- Offset atual: 0/0.
+- Nada foi gravado.
+
+**Testes de unidade (21):**
+- Com o padrão (desligado), não toca no driver.
+- O Turbo aplica +100/+200 e confere lendo de volta.
+- Não regrava a cada ciclo.
+- Outro modo volta a 0.
+- Não acorda a GPU desligada.
+- Reaplica se o driver perdeu o offset.
+- Não briga com offset de outro programa.
+- Failsafe de 85/78 °C e de leitura inválida.
+- Desativar e parar zeram.
+- Espera 60 s depois de um erro do driver.
+- Os limites cortam valores altos.
+- O Eco nunca tem offset.
+
+**Simulado (pipe):**
+- Desligado, não toca no driver.
+- Ligado no Turbo, vai a +100/+200.
+- No Equilibrado, volta a 0.
+- Núcleo 900 é recusado.
+- `gpu-offsets.json` é gravado.
+
+**Simulado (tela):**
+- Carrega o estado salvo, mostra "No driver agora" e "Alvo no modo atual" e marca o modo atual.
+- Desligar e salvar zera o que o serviço gravou.
+- Bug achado e corrigido: o cliente descartava a resposta `gpuOffsets`, então a tela sempre abria desligada.
+
+**Pendente, com o usuário na frente do PC e o HWiNFO aberto:**
+1. Instalar (admin).
+2. Na tela GPU, ligar com o padrão da Acer e pôr o Turbo.
+3. Conferir a memória a 8201 MHz no HWiNFO e a linha "Offset da GPU: … → núcleo +100 MHz, memória +200 MHz" no log.
+4. Voltar ao Equilibrado (memória 8001) e desligar a opção.
+
+**Como reverter:**
+- desligar a opção na tela;
+- `sc stop KillerSense` (zera ao parar);
+- reiniciar o PC.
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.

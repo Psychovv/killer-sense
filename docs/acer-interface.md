@@ -227,6 +227,37 @@ Nenhum modo mexeu no comportamento das fans (sempre `0x41` Auto) nem nos % do Cu
 - Tem nomes de offset para cada modo: `GPU Quiet/Balanced/Performance/Turbo/Extreme/Default overclock frequency` e os mesmos com `RAM_`. O `.ini` deste modelo só preenche o Turbo (+100 núcleo / +200 memória); os outros são 0. "Extreme" não aparece no app deste modelo.
 - ⚠️ `SetPstates20` **não faz parte do SDK público** da NVAPI (é acessado via `nvapi_QueryInterface`). Usá-lo no nosso programa exige pesquisar a interface; risco técnico a avaliar na Fase 2. Alternativa pública: travar faixas de clock (`nvidia-smi -lgc/-lmc`), que não é a mesma coisa que offset.
 
+### Offset da GPU pela NVAPI no killer-sense (A19, 2026-11-06)
+
+**Leitura (sem admin), CONFIRMADO:** `nvapi_QueryInterface` + `GetPstates20` (id `0x6FF81213`) com `NV_GPU_PERF_PSTATES20_INFO` versão 2 (`0x21CF8`, 7416 bytes) responde 0. São 5 P-states e 2 clocks (núcleo e memória), sem tensão base.
+
+| P-state | Núcleo | Memória | Editável |
+|---|---|---|---|
+| P0 | 210..3105 MHz, delta aceito de −1000 a +1000 | 8001 MHz, delta aceito de −1000 a +3000 | sim |
+| P3 | — | 7001 MHz | não |
+| P4 | — | 5920 MHz | não |
+| P5 | — | 810 MHz | não |
+| P8 | — | 405 MHz | não |
+
+- Os deltas estavam em **0/0**, o que bate com "o Turbo pelo killer-sense não acelera".
+- A memória do P0 é 8001 MHz; com +200 dá os 8201 medidos no A13.
+
+**Escrita, NÃO TESTADA no hardware:** `SetPstates20` (id `0x0F4DAE6B`, fora do SDK público) com a mesma estrutura, versão 1 (`0x11C94`).
+- Grava no P0 o núcleo (domínio 0) e a memória (domínio 4), com o delta em kHz.
+- SUPOSIÇÃO: exige administrador (o serviço roda como SYSTEM).
+- SUPOSIÇÃO: o offset dura até reiniciar o PC ou o driver.
+
+**Política no serviço (`GpuOffsetController`):**
+- Vem **desligado**.
+- Só fala com o driver na troca de modo ou de configuração, quando a GPU religa ou quando muda o estado de temperatura, e **só com a GPU em D0**.
+- Não regrava a cada ciclo e não briga com um offset posto por outro programa.
+- Confere lendo de volta.
+- Retira o offset com a GPU a 85 °C ou mais, ou com leitura inválida, até esfriar abaixo de 78 °C.
+- Zera o que gravou ao parar ou ao encerrar o killer-sense.
+- Limites: núcleo de −300 a +150 MHz e memória de −500 a +300 MHz, além da faixa do driver.
+
+Ferramenta: `KillerSense.HwTests gpu-oc` (só leitura).
+
 ### Limites de potência no Turbo (HWiNFO, `teste_fan2.CSV`, 20:08)
 | | Valor |
 |---|---|
@@ -575,6 +606,7 @@ Log do HWiNFO a cada 2 s (`Downloads\a18.CSV`, fora do repositório); horários 
 | A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
+| A19 | Offset da GPU pelo killer-sense (`SetPstates20`): Turbo +100 / +200, depois voltar a 0 | HWiNFO aberto, GPU ligada, na tomada | leitura feita 2026-11-06; **escrita aguardando o usuário** | o driver aceita e mantém o offset; memória a 8201 MHz no Turbo; zera ao sair |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
 | ~~A15~~ | ~~Escritas de fan Custom e FanSpeed~~ | — | **feito 2026-11-05** (Max não testado: o usuário não quer fan a 100%) | Custom 40/40 → ~4166 / ~3896 rpm |
 | ~~A16~~ | ~~Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)`~~ | — | **feito 2026-11-06** | `OPMS` muda e fica; abrir a janela do PredatorSense reaplica o modo salvo nela |
