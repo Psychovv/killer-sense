@@ -186,6 +186,6 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
-- Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
+- ~~Leitura de temperatura da GPU (NVML) para a curva da GPU~~: feito no T6. A curva da GPU usa o NVML; com a GPU desligada (Optimus), a fan dela fica no Auto do EC.
 - Emergência (Max) só foi testada com o firmware simulado (precisa de CPU ≥ 95 °C real).
 - Stress de CPU/GPU com a curva ativa.
