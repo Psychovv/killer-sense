@@ -80,7 +80,7 @@ public sealed class ServiceClient : IAsyncDisposable
                     {
                         StateReceived?.Invoke(state);
                     }
-                    else if (msg?.Kind is IpcMessage.KindAck or IpcMessage.KindProfile)
+                    else if (msg?.Kind is IpcMessage.KindAck or IpcMessage.KindProfile or IpcMessage.KindGpuOffsets)
                     {
                         TaskCompletionSource<IpcMessage>? tcs;
                         lock (_ackGate)

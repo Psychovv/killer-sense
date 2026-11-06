@@ -66,9 +66,12 @@ public class IpcPipeTests
         var server = new IpcServer(name, r =>
         {
             commands.Add(r.Type);
-            return Task.FromResult(r.Type == IpcRequestType.GetProfile
-                ? IpcMessage.ForProfile(FanProfileDto.From(FanProfile.Default))
-                : IpcMessage.Ack(true));
+            return Task.FromResult(r.Type switch
+            {
+                IpcRequestType.GetProfile => IpcMessage.ForProfile(FanProfileDto.From(FanProfile.Default)),
+                IpcRequestType.GetGpuOffsets => IpcMessage.ForGpuOffsets(GpuOffsetSettingsDto.From(GpuOffsetSettings.Default)),
+                _ => IpcMessage.Ack(true),
+            });
         });
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         var serverTask = server.RunAsync(cts.Token);
@@ -91,7 +94,10 @@ public class IpcPipeTests
         var profile = await client.RequestAsync(new IpcRequest(IpcRequestType.GetProfile), TimeSpan.FromSeconds(5));
         Assert.Equal(IpcMessage.KindProfile, profile.Kind);
         Assert.Equal(60, profile.Profile!.CpuEntryTemperature);
-        Assert.Equal([IpcRequestType.RestoreAuto, IpcRequestType.GetProfile], commands);
+        var offsets = await client.RequestAsync(new IpcRequest(IpcRequestType.GetGpuOffsets), TimeSpan.FromSeconds(5));
+        Assert.Equal(IpcMessage.KindGpuOffsets, offsets.Kind);
+        Assert.False(offsets.GpuOffsets!.Enabled);
+        Assert.Equal([IpcRequestType.RestoreAuto, IpcRequestType.GetProfile, IpcRequestType.GetGpuOffsets], commands);
 
         await cts.CancelAsync();
         await serverTask;

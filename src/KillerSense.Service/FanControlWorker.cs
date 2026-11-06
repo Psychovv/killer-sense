@@ -27,14 +27,31 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly Lock _gate = new();
     private readonly Func<bool?> _power = KillerSense.Firmware.PowerSource.IsOnAc; // leitura do Windows, também no simulado
     private readonly ChargeLimitMonitor _chargeLimit;
+    private readonly GpuOffsetController _gpuOffsets;
+    private readonly GpuOffsetStore? _gpuOffsetStore;
     private bool _suspended;
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
     private bool? _lastLoggedChargeLimit;
 
     /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
     /// <param name="control">Onde fica a escolha "Encerrar"; null = não persistir.</param>
-    public FanControlWorker(FanControlEngine engine, ChargeLimitMonitor chargeLimit, IGpuSensor gpu, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, ILogger<FanControlWorker> log)
+    /// <param name="gpuOffsets">Quem lê e grava o offset de clock da GPU (NVAPI ou simulado).</param>
+    /// <param name="gpuOffsetStore">Onde fica a configuração do offset; null = só o padrão (desligado), sem salvar.</param>
+    public FanControlWorker(FanControlEngine engine, ChargeLimitMonitor chargeLimit, IGpuSensor gpu, IGpuClockOffsets gpuOffsets, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, GpuOffsetStore? gpuOffsetStore, ILogger<FanControlWorker> log)
     {
+        ArgumentNullException.ThrowIfNull(gpuOffsets);
+        _gpuOffsetStore = gpuOffsetStore;
+        var offsetSettings = GpuOffsetSettings.Default;
+        if (gpuOffsetStore is not null)
+        {
+            offsetSettings = gpuOffsetStore.Load(out var problem);
+            if (problem is not null)
+            {
+                LogGpuOffsetConfigIgnored(log, problem);
+            }
+        }
+
+        _gpuOffsets = new GpuOffsetController(gpuOffsets, offsetSettings, message => LogGpuOffset(log, message));
         _chargeLimit = chargeLimit;
         _control = control;
         _engine = engine;
@@ -108,6 +125,22 @@ public sealed partial class FanControlWorker : BackgroundService
                         _store?.Save(profile); // grava antes de aplicar: o que roda é o que está salvo
                         _engine.SetProfile(profile);
                         break;
+                    case IpcRequestType.GetGpuOffsets:
+                        return Task.FromResult(IpcMessage.ForGpuOffsets(GpuOffsetSettingsDto.From(_gpuOffsets.Settings)));
+                    case IpcRequestType.SetGpuOffsets:
+                        string? offsetError = "Configuração ausente.";
+                        if (request.GpuOffsets?.TryToSettings(out offsetError) is not { } offsets)
+                        {
+                            offsetError ??= "Configuração inválida.";
+                            LogGpuOffsetRejected(_log, offsetError);
+                            return Task.FromResult(IpcMessage.Ack(false, offsetError));
+                        }
+
+                        _gpuOffsetStore?.Save(offsets); // grava antes de aplicar
+                        _gpuOffsets.SetSettings(offsets);
+                        var turbo = offsets.For(OperatingMode.Turbo);
+                        LogGpuOffsetSaved(_log, offsets.Enabled, turbo);
+                        break;
                     default:
                         return Task.FromResult(IpcMessage.Ack(false, "Comando não suportado."));
                 }
@@ -146,10 +179,31 @@ public sealed partial class FanControlWorker : BackgroundService
         _suspended = false;
         _engine.RestoreAuto();
         _engine.Resume();
+        _gpuOffsets.Recheck(); // confere se o driver manteve o offset
     });
 
     /// <summary>Melhor esforço para devolver o Auto (desligamento, exceção não tratada).</summary>
-    public void RestoreAutoNow(string reason) => Guarded(reason, _engine.RestoreAuto);
+    public void RestoreAutoNow(string reason)
+    {
+        Guarded(reason, _engine.RestoreAuto);
+        ReleaseGpuOffset(reason);
+    }
+
+    /// <summary>Zera o offset da GPU que o killer-sense gravou (melhor esforço; reiniciar o PC também desfaz).</summary>
+    private void ReleaseGpuOffset(string reason)
+    {
+        try
+        {
+            lock (_gate)
+            {
+                _gpuOffsets.Release(reason);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            LogGpuOffsetFailed(_log, ex, reason);
+        }
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -174,16 +228,19 @@ public sealed partial class FanControlWorker : BackgroundService
                 var gpuTemp = _gpuFeed.Update(gpuReading);
                 EngineSnapshot snap;
                 bool? chargeLimit;
+                GpuOffsetStatus gpuOffset;
                 lock (_gate)
                 {
                     snap = _engine.Tick(dt, gpuTemp);
                     var batteryAllowed = !_engine.IsDisabled && !_suspended; // desativado/suspenso: nenhuma chamada
                     _chargeLimit.Tick(dt, batteryAllowed);
+                    _gpuOffsets.Tick(dt, snap.OperatingMode, gpuReading, allowed: batteryAllowed); // só com a GPU ligada
+                    gpuOffset = _gpuOffsets.Status;
                     chargeLimit = batteryAllowed ? _chargeLimit.IsOn : null;
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
-                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power(), chargeLimit, gpuReading.Telemetry));
+                _ipc.Publish(ServiceState.From(snap, DateTime.UtcNow, _power(), chargeLimit, gpuReading.Telemetry, gpuOffset));
                 if (chargeLimit != _lastLoggedChargeLimit)
                 {
                     LogChargeLimitState(_log, chargeLimit);
@@ -234,6 +291,21 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Comando da interface executado: {Command}.")]
     private static partial void LogCommand(ILogger logger, IpcRequestType command);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Offset da GPU: {Message}")]
+    private static partial void LogGpuOffset(ILogger logger, string message);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Configuração do offset da GPU ignorada, usando o padrão (desligado): {Problem}")]
+    private static partial void LogGpuOffsetConfigIgnored(ILogger logger, string problem);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Configuração do offset da GPU recusada: {Reason}")]
+    private static partial void LogGpuOffsetRejected(ILogger logger, string reason);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Configuração do offset da GPU salva: ligado={Enabled}, Turbo {Turbo}.")]
+    private static partial void LogGpuOffsetSaved(ILogger logger, bool enabled, GpuClockOffset turbo);
+
+    [LoggerMessage(Level = LogLevel.Critical, Message = "FALHA ao zerar o offset da GPU ({Reason}).")]
+    private static partial void LogGpuOffsetFailed(ILogger logger, Exception ex, string reason);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Modo de operação trocado pela interface: {Mode}.")]
     private static partial void LogModeSet(ILogger logger, OperatingMode mode);

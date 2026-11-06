@@ -58,6 +58,23 @@ public static class IpcProtocol
         }
     }
 
+    /// <summary>Configuração do offset da GPU em JSON legível (gpu-offsets.json).</summary>
+    public static string SerializeGpuOffsets(GpuOffsetSettingsDto settings) =>
+        JsonSerializer.Serialize(settings, IpcJsonContext.Indented.GpuOffsetSettingsDto);
+
+    /// <summary>Lê a configuração do offset da GPU; null se o JSON for inválido (a validação vem depois).</summary>
+    public static GpuOffsetSettingsDto? ParseGpuOffsets(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, IpcJsonContext.Default.GpuOffsetSettingsDto);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Lê uma mensagem do serviço; null se o JSON for inválido.</summary>
     public static IpcMessage? ParseMessage(string line)
     {
@@ -104,25 +121,34 @@ public enum IpcRequestType
 
     /// <summary>Liga/desliga o limite de carga de 80% (campo <c>enabled</c> obrigatório). Não fica "preso".</summary>
     SetChargeLimit,
+
+    /// <summary>Devolve a configuração do offset da GPU por modo.</summary>
+    GetGpuOffsets,
+
+    /// <summary>Valida, salva e aplica a configuração do offset da GPU (campo <c>gpuOffsets</c> obrigatório).</summary>
+    SetGpuOffsets,
 }
 
-public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null, bool? Enabled = null);
+public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null, bool? Enabled = null, GpuOffsetSettingsDto? GpuOffsets = null);
 
 /// <summary>
 /// Mensagem do serviço: <c>state</c> (estado), <c>ack</c> (resposta a um comando) ou <c>profile</c>
 /// (resposta a <see cref="IpcRequestType.GetProfile"/>).
 /// </summary>
-public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? Ok = null, string? Error = null, FanProfileDto? Profile = null)
+public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? Ok = null, string? Error = null, FanProfileDto? Profile = null, GpuOffsetSettingsDto? GpuOffsets = null)
 {
     public const string KindState = "state";
     public const string KindAck = "ack";
     public const string KindProfile = "profile";
+    public const string KindGpuOffsets = "gpuOffsets";
 
     public static IpcMessage ForState(ServiceState state) => new(KindState, State: state);
 
     public static IpcMessage Ack(bool ok, string? error = null) => new(KindAck, Ok: ok, Error: error);
 
     public static IpcMessage ForProfile(FanProfileDto profile) => new(KindProfile, Ok: true, Profile: profile);
+
+    public static IpcMessage ForGpuOffsets(GpuOffsetSettingsDto settings) => new(KindGpuOffsets, Ok: true, GpuOffsets: settings);
 }
 
 /// <summary>Estado publicado pelo serviço a cada ciclo.</summary>
@@ -142,12 +168,14 @@ public sealed record ServiceState(
     string? Message,
     bool? OnAc = null,
     bool? ChargeLimitOn = null,
-    GpuTelemetry? Gpu = null)
+    GpuTelemetry? Gpu = null,
+    GpuOffsetStatus? GpuOffset = null)
 {
     /// <param name="onAc">Fonte de energia (true = tomada); null = desconhecida.</param>
     /// <param name="chargeLimitOn">Limite de carga de 80%; null = desconhecido (desativado, sem leitura).</param>
     /// <param name="gpu">Clocks, uso e potência da GPU (só com ela ligada); null = desligada ou sem dados.</param>
-    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null, bool? chargeLimitOn = null, GpuTelemetry? gpu = null)
+    /// <param name="gpuOffset">Estado do offset de clock da GPU; null = sem controlador (versão antiga).</param>
+    public static ServiceState From(EngineSnapshot s, DateTime utcNow, bool? onAc = null, bool? chargeLimitOn = null, GpuTelemetry? gpu = null, GpuOffsetStatus? gpuOffset = null)
     {
         ArgumentNullException.ThrowIfNull(s);
         return new(
@@ -166,7 +194,8 @@ public sealed record ServiceState(
             s.Message,
             onAc,
             chargeLimitOn,
-            gpu);
+            gpu,
+            gpuOffset);
     }
 }
 
@@ -177,6 +206,7 @@ public sealed record ServiceState(
 [JsonSerializable(typeof(IpcRequest))]
 [JsonSerializable(typeof(IpcMessage))]
 [JsonSerializable(typeof(FanProfileDto))]
+[JsonSerializable(typeof(GpuOffsetSettingsDto))]
 internal sealed partial class IpcJsonContext : JsonSerializerContext
 {
     private static IpcJsonContext? s_indented;

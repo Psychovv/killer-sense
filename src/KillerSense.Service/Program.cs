@@ -26,6 +26,8 @@ var simGpu = simulated && args.Contains("--sim-gpu", StringComparer.Ordinal);
 builder.Services.AddSingleton<IGpuSensor>(_ => simulated
     ? new SimulatedGpuSensor { Next = simGpu ? GpuReading.Value(47, new GpuTelemetry(1980, 8001, 12, 18.5, 80, 0)) : GpuReading.Off }
     : new KillerSense.Gpu.NvidiaGpuSensor());
+// Offset de clock da GPU: NVAPI no real; simulado no --simulated (nenhuma chamada ao driver).
+builder.Services.AddSingleton<IGpuClockOffsets>(_ => simulated ? new SimulatedGpuClockOffsets() : new KillerSense.Gpu.NvidiaClockOffsets());
 builder.Services.AddSingleton(new HeartbeatOptions(simulated ? @"Local\KillerSense.Heartbeat.Simulated" : Heartbeat.DefaultName));
 builder.Services.AddSingleton(new IpcOptions(simulated ? KillerSense.Ipc.IpcProtocol.SimulatedPipeName : KillerSense.Ipc.IpcProtocol.PipeName));
 // Perfil: config.json (serviço) ou um arquivo à parte no modo simulado.
@@ -38,6 +40,8 @@ ProfileStore? store = testEntry is not null ? null
     : new ProfileStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "config.simulated.json") : ProfileStore.DefaultPath);
 ControlStateStore? control = testEntry is not null ? null
     : new ControlStateStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "control-disabled.simulated") : ControlStateStore.DefaultPath);
+GpuOffsetStore? gpuOffsetStore = testEntry is not null ? null
+    : new GpuOffsetStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "gpu-offsets.simulated.json") : GpuOffsetStore.DefaultPath);
 var profile = FanProfile.Default;
 if (store is not null)
 {
@@ -63,10 +67,12 @@ builder.Services.AddSingleton(sp => new FanControlWorker(
     sp.GetRequiredService<FanControlEngine>(),
     sp.GetRequiredService<ChargeLimitMonitor>(),
     sp.GetRequiredService<IGpuSensor>(),
+    sp.GetRequiredService<IGpuClockOffsets>(),
     sp.GetRequiredService<HeartbeatOptions>(),
     sp.GetRequiredService<IpcOptions>(),
     store,
     control,
+    gpuOffsetStore,
     sp.GetRequiredService<ILogger<FanControlWorker>>()));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FanControlWorker>());
 if (WindowsServiceHelpers.IsWindowsService())
