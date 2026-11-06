@@ -11,6 +11,7 @@
 //                                          Desempenho/Turbo só na tomada, Eco só na bateria.
 //   battery                                só leitura: funções de saúde da bateria (A8)
 //   battery --limit on|off                 liga/desliga o limite de carga (SetBatteryHealthControl(1, 1, x))
+//   gpu-oc                                 só leitura (NVAPI GetPstates20): offsets e faixas de clock da GPU
 //
 // Proibido por decisão do usuário: modo Max e qualquer % acima de 60 (barulho).
 using System.Diagnostics;
@@ -35,6 +36,17 @@ internal static class Program
         if (args.Length > 0 && args[0] == "gpu")
         {
             return ReadGpu(args); // não precisa de admin nem toca no firmware da Acer
+        }
+
+        if (args.Length > 0 && args[0] == "gpu-oc")
+        {
+            // Só leitura (GetPstates20): offsets e faixas de clock por P-state. Não precisa de admin.
+            foreach (var line in new KillerSense.Gpu.NvidiaClockOffsets().Dump())
+            {
+                Log(line);
+            }
+
+            return 0;
         }
 
         if (!IsAdministrator())
