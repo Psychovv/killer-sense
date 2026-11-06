@@ -114,6 +114,12 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Simulado (pipe): perfil com 10 pontos na CPU aceito e lido de volta; com 11, recusado ("A curva precisa de 2 a 10 pontos."). O limite de 10 já era do serviço.
 - Instalado: o usuário adicionou com duplo clique, arrastou e removeu com clique direito. ✅ Não salvou (o `config.json` continua com 5 pontos por curva).
 
+### T14 — painel ao vivo na página Modos (2026-11-06, simulado e versão instalada)
+- Simulado: com a GPU desligada o painel mostra "GPU dormindo"; com `--sim-gpu`, clock, memória, uso, potência "de 80 W", temperatura e P0. A CPU usa os contadores reais do Windows (ex.: 4675 MHz, 12%, 34 W) e o limite sustentado do modo (85 W no Equilibrado).
+- `HwTests gpu` no hardware, sem admin: NVML responde clock (210 MHz), memória (405 MHz), uso, potência (3,7 W), limite aplicado pelo driver (**75 W**, o HWiNFO mostra 80 nominal / 140 máx.) e P8.
+- Instalado (21:04): o serviço publica `gpu {coreClockMhz 330, memoryClockMhz 405, powerWatts 3,1, powerLimitWatts 75, performanceState 8}`; o usuário trocou de modo e o limite sustentado acompanhou. ✅
+- Pendente: com o HWiNFO fechado (ele mesmo mantém a GPU acordada), confirmar que a GPU ainda dorme com o killer-sense rodando (as leituras extras só acontecem em D0, junto com a temperatura).
+
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
 - Leitura de temperatura da GPU (NVML) para a curva da GPU; até lá a fan da GPU fica no Auto do EC.
