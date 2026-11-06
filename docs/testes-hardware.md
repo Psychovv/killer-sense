@@ -122,7 +122,7 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 
 ## Fase 4.3 — GPU
 
-### T15 — offset da GPU por modo (2026-11-06, simulado; hardware pendente)
+### T15 — offset da GPU por modo (2026-11-06, simulado e versão instalada)
 
 **`HwTests gpu-oc` no hardware, sem admin:**
 - `GetPstates20` responde.
@@ -156,11 +156,16 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Desligar e salvar zera o que o serviço gravou.
 - Bug achado e corrigido: o cliente descartava a resposta `gpuOffsets`, então a tela sempre abria desligada.
 
-**Pendente, com o usuário na frente do PC e o HWiNFO aberto:**
-1. Instalar (admin).
-2. Na tela GPU, ligar com o padrão da Acer e pôr o Turbo.
-3. Conferir a memória a 8201 MHz no HWiNFO e a linha "Offset da GPU: … → núcleo +100 MHz, memória +200 MHz" no log.
-4. Voltar ao Equilibrado (memória 8001) e desligar a opção.
+**Hardware (23:09–23:10, versão instalada, na tomada, usuário com o HWiNFO aberto):**
+- Instalação aprovada (UAC): serviços parados, atualizados e de volta em Running. A opção veio desligada e o offset ficou intocado.
+- Pelo pipe: a opção foi ligada com o padrão da Acer, o modo foi para o Turbo e ficou 20 s, depois voltou ao Equilibrado e a opção foi desligada.
+- **CONFIRMADO:**
+  - `SetPstates20` pelo serviço (SYSTEM) funciona: 0,7 s depois do Turbo, o driver lido de volta tinha **+100/+200**, mantido nos 20 s.
+  - No Equilibrado, voltou a **0/0** em 0,4 s.
+  - Sem erro do driver e sem o failsafe disparar (GPU a 47–49 °C).
+  - O log mostra "Offset da GPU: núcleo 0 MHz, memória 0 MHz → núcleo +100 MHz, memória +200 MHz (modo Turbo)" e a volta.
+- A GPU ficou em P8/P5 o tempo todo (repouso), então o clock de memória de 8201 MHz não apareceu (ele só vale no P0). Neste teste, o Turbo pelo killer-sense **não** levou a GPU a P0 em repouso.
+- Pendente: ver a memória a 8201 MHz (~2050 no HWiNFO) com a GPU em carga (P0), no Turbo e com a opção ligada.
 
 **Como reverter:**
 - desligar a opção na tela;

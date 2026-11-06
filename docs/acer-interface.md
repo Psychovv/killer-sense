@@ -242,9 +242,9 @@ Nenhum modo mexeu no comportamento das fans (sempre `0x41` Auto) nem nos % do Cu
 - Os deltas estavam em **0/0**, o que bate com "o Turbo pelo killer-sense não acelera".
 - A memória do P0 é 8001 MHz; com +200 dá os 8201 medidos no A13.
 
-**Escrita, NÃO TESTADA no hardware:** `SetPstates20` (id `0x0F4DAE6B`, fora do SDK público) com a mesma estrutura, versão 1 (`0x11C94`).
+**Escrita, CONFIRMADO no hardware (T15, 2026-11-06 23:10):** `SetPstates20` (id `0x0F4DAE6B`, fora do SDK público) com a mesma estrutura, versão 1 (`0x11C94`). O driver lido de volta passou a +100/+200 e depois voltou a 0/0, sem erro.
 - Grava no P0 o núcleo (domínio 0) e a memória (domínio 4), com o delta em kHz.
-- SUPOSIÇÃO: exige administrador (o serviço roda como SYSTEM).
+- Feita pelo serviço (SYSTEM). SUPOSIÇÃO: sem administrador o driver recusa (não testado).
 - SUPOSIÇÃO: o offset dura até reiniciar o PC ou o driver.
 
 **Política no serviço (`GpuOffsetController`):**
@@ -606,7 +606,7 @@ Log do HWiNFO a cada 2 s (`Downloads\a18.CSV`, fora do repositório); horários 
 | A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
-| A19 | Offset da GPU pelo killer-sense (`SetPstates20`): Turbo +100 / +200, depois voltar a 0 | HWiNFO aberto, GPU ligada, na tomada | leitura feita 2026-11-06; **escrita aguardando o usuário** | o driver aceita e mantém o offset; memória a 8201 MHz no Turbo; zera ao sair |
+| A19 | Offset da GPU pelo killer-sense (`SetPstates20`): Turbo +100 / +200, depois voltar a 0 | HWiNFO aberto, GPU ligada, na tomada | **feito 2026-11-06** (falta ver em carga) | +100/+200 no Turbo e 0/0 no Equilibrado, lidos de volta do driver; 8201 MHz só em P0 |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
 | ~~A15~~ | ~~Escritas de fan Custom e FanSpeed~~ | — | **feito 2026-11-05** (Max não testado: o usuário não quer fan a 100%) | Custom 40/40 → ~4166 / ~3896 rpm |
 | ~~A16~~ | ~~Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)`~~ | — | **feito 2026-11-06** | `OPMS` muda e fica; abrir a janela do PredatorSense reaplica o modo salvo nela |
