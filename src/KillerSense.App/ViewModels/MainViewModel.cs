@@ -16,7 +16,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Battery = new BatteryViewModel(client, Dashboard);
         Lighting = new LightingViewModel();
         Keyboard = new KeyboardViewModel();
-        Gpu = new GpuViewModel();
+        Gpu = new GpuViewModel(client, Dashboard);
         Settings = new SettingsViewModel();
 
         Pages =
@@ -28,7 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Bateria", Battery),
             new(this, "Iluminação", Lighting, isPreview: true),
             new(this, "Teclado e sistema", Keyboard, isPreview: true),
-            new(this, "GPU", Gpu, isPreview: true),
+            new(this, "GPU", Gpu),
             new(this, "Configurações", Settings),
         ];
         CurrentNav = Pages[0];
@@ -117,6 +117,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (item.Page == Fans && !Fans.IsLoaded && Dashboard.IsConnected)
         {
             await Fans.LoadAsync().ConfigureAwait(true);
+        }
+
+        if (item.Page == Gpu && !Gpu.IsDirty && Dashboard.IsConnected)
+        {
+            await Gpu.LoadAsync().ConfigureAwait(true);
         }
     }
 

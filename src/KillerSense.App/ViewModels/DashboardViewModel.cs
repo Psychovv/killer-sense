@@ -70,6 +70,9 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     /// <summary>Clocks, uso e potência da GPU (só com ela ligada); null = desligada ou sem dados.</summary>
     [ObservableProperty] public partial GpuTelemetry? GpuStats { get; set; }
 
+    /// <summary>Estado do offset de clock da GPU; null = serviço sem esse controle.</summary>
+    [ObservableProperty] public partial GpuOffsetStatus? GpuOffset { get; set; }
+
     /// <summary>Cliente compartilhado com as outras telas.</summary>
     public ServiceClient Client => _client;
     [ObservableProperty] public partial string StateText { get; set; } = "—";
@@ -148,6 +151,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
         OnAc = s.OnAc;
         ChargeLimitOn = s.ChargeLimitOn;
         GpuStats = s.Gpu;
+        GpuOffset = s.GpuOffset;
         IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault or EngineState.Disabled;
         Push(_cpuHistory, s.CpuTemperature);
         Push(_gpuHistory, s.GpuTemperature);
