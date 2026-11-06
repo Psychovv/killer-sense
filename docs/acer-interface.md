@@ -606,7 +606,7 @@ Log do HWiNFO a cada 2 s (`Downloads\a18.CSV`, fora do repositório); horários 
 | A17 | Curva % → RPM de cada fan (Custom 20/40/60/80/100, modo Equilibrado fixo, em repouso) | HWiNFO aberto | não linear no A10 | tabela % × RPM e tempo de resposta |
 | A12 | Tecla de modos: opção da tecla (`FMKY`?) e evento WMI | na tomada | **baixa prioridade** (usuário) | o essencial já foi feito: a tecla só avisa o software |
 | ~~A13~~ | ~~GPU OC do Turbo~~ | — | **feito 2026-11-05** | memória +200 confirmado; núcleo +100 sem carga não aparece |
-| A19 | Offset da GPU pelo killer-sense (`SetPstates20`): Turbo +100 / +200, depois voltar a 0 | HWiNFO aberto, GPU ligada, na tomada | **feito 2026-11-06** (falta ver em carga) | +100/+200 no Turbo e 0/0 no Equilibrado, lidos de volta do driver; 8201 MHz só em P0 |
+| A19 | Offset da GPU pelo killer-sense (`SetPstates20`): Turbo +100 / +200, depois voltar a 0 | HWiNFO aberto, GPU ligada, na tomada | **feito 2026-11-06** (em carga também) | +100/+200 no Turbo e 0/0 no Equilibrado, lidos de volta do driver; em carga a memória foi de 8001 a 8201 MHz e voltou |
 | A14 | Funções extras do PredatorSense: desligar backlight após 30 s, trava da tecla Windows, sticky key, LCD overdrive, modo de som DTS, USB charging desligado (Quick Access) | — | mapear se entram na paridade | qual método/campo muda em cada uma |
 | ~~A15~~ | ~~Escritas de fan Custom e FanSpeed~~ | — | **feito 2026-11-05** (Max não testado: o usuário não quer fan a 100%) | Custom 40/40 → ~4166 / ~3896 rpm |
 | ~~A16~~ | ~~Escrita de modo: `SetGamingMiscSetting((modo << 8) \| 0x0B)`~~ | — | **feito 2026-11-06** | `OPMS` muda e fica; abrir a janela do PredatorSense reaplica o modo salvo nela |

@@ -165,7 +165,19 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
   - Sem erro do driver e sem o failsafe disparar (GPU a 47–49 °C).
   - O log mostra "Offset da GPU: núcleo 0 MHz, memória 0 MHz → núcleo +100 MHz, memória +200 MHz (modo Turbo)" e a volta.
 - A GPU ficou em P8/P5 o tempo todo (repouso), então o clock de memória de 8201 MHz não apareceu (ele só vale no P0). Neste teste, o Turbo pelo killer-sense **não** levou a GPU a P0 em repouso.
-- Pendente: ver a memória a 8201 MHz (~2050 no HWiNFO) com a GPU em carga (P0), no Turbo e com a opção ligada.
+
+
+**Em carga (23:16–23:18, jogo aberto, GPU em P0 com ~40% de uso e ~20 W, 58–59 °C):** Equilibrado por 15 s, Turbo por 30 s, Equilibrado por 15 s, com a opção ligada e desligada no fim.
+
+| Fase | Offset no driver | Memória (NVML) | Memória (HWiNFO) |
+|---|---|---|---|
+| Equilibrado | 0/0 | 8001 MHz | 2000,2 MHz |
+| Turbo | +100/+200, 1 s depois da troca | **8201 MHz**, 1 s depois | **2050,2 MHz**, ~3 s depois (intervalo de leitura do HWiNFO) |
+| Equilibrado | 0/0 em 1 s | 8001 MHz em 2 s | 2000,2 MHz |
+
+- **CONFIRMADO:** o +200 na memória pelo killer-sense chega ao clock real. Vale o mesmo que o PredatorSense aplica no Turbo (A13: 8201).
+- Núcleo: com carga leve, o clock segue a demanda (1440–2295 MHz nas duas fases), então o +100 não aparece. SUPOSIÇÃO: ele desloca a curva tensão/frequência e só aparece com a GPU no limite de boost; o driver confirmou o +100 na leitura.
+- Sem travamento ou artefato relatado nos 30 s, failsafe não disparou, nenhum erro do driver.
 
 **Como reverter:**
 - desligar a opção na tela;
