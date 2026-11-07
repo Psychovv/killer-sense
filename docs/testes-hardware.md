@@ -120,13 +120,13 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Instalado (21:04): o serviço publica `gpu {coreClockMhz 330, memoryClockMhz 405, powerWatts 3,1, powerLimitWatts 75, performanceState 8}`; o usuário trocou de modo e o limite sustentado acompanhou. ✅
 - Pendente: com o HWiNFO fechado (ele mesmo mantém a GPU acordada), confirmar que a GPU ainda dorme com o killer-sense rodando (as leituras extras só acontecem em D0, junto com a temperatura).
 
-### T18 — Painel com uso, RAM e programas (2026-11-07, simulado com `--sim-gpu`)
+### T18 — Painel com uso, RAM e programas (2026-11-07, simulado com `--sim-gpu` e versão instalada)
 - O Painel ganhou, na CPU, uso, clock e potência (os mesmos contadores do Windows da página Modos) e, na GPU, uso, clock e potência (o serviço já mandava). Também ganhou um cartão de Memória (RAM em uso) e "Programas que mais pesam" (os 3 com mais CPU, somando os processos de mesmo nome). O gráfico troca entre Temperatura e Uso.
 - Nenhuma chamada nova ao firmware nem ao serviço. CPU, RAM e programas só são lidos com o Painel visível: CPU a cada 1 s, RAM e programas a cada 2 s.
 - Programas: uma chamada `NtQuerySystemInformation` traz todos os processos com o tempo de CPU, sem abrir nenhum (sem admin, enxerga até os protegidos). Medido: ~3 ms de CPU por leitura com 349 processos, ou seja, ~1,5 ms/s com o Painel aberto.
 - Visto no simulado: CPU 12%, 4.679 MHz, 40 W; GPU simulada 12%, 1.980 MHz, 18,5 W de 80 W; RAM 14,8 de 15,7 GB (94%); programas chrome (19), System, Spotify (8). O gráfico de uso mostrou a CPU (só com o Painel aberto) e a GPU.
 - Achado: o notebook estava com a RAM em 94–97% durante o teste.
-- Pendente: ver na versão instalada (o app precisa ser reinstalado).
+- Versão instalada (14:33, serviços e app juntos): a janela abriu em 7 s e conectou ao serviço em 7,5 s. O Painel mostrou CPU 74 °C, 16%, 4.906 MHz, 45,8 W; GPU 55 °C, 28%, 225 MHz, 3,8 W de 75 W; RAM 13,9 de 15,7 GB (89%); programas chrome (22) 1,6% e 2,5 GB, System 1,5%, KillerSense 1,4% e 46 MB. Os botões Temperatura e Uso do gráfico aparecem. Lido por UI Automation, sem captura de tela.
 
 ## Fase 4.3 — GPU
 
