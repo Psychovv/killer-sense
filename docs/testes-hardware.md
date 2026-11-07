@@ -98,7 +98,7 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - Janela: carga 100%, "Na tomada", saúde 97%, capacidade atual 87,7 Wh, de fábrica 90,6 Wh (lidas do driver da bateria do Windows, sem admin); ciclos "não informado" (o driver devolve 0).
 - No hardware, versão instalada (19:46–19:48, na tomada): desligar pela página ⇒ log `Limite de carga trocado pela interface: false` e o Care Center mostrou desligado; ligar ⇒ `true` (19:48:25) e o Care Center acompanhou. ✅
 - Achado e corrigido: logo depois da troca, o botão voltava por um instante ao estado antigo (a página relia o estado publicado, que só muda no ciclo seguinte), e o segundo clique do usuário mandou "desligar" de novo (19:46:05 e 19:46:06). Agora a página guarda o valor aceito até o serviço publicar (máx. 10 s). No simulado, 16 s depois de cada clique o botão continua no valor pedido.
-- Achado na instalação: publicar sem `--self-contained` gera serviços que não sobem (o PC só tem .NET 6); publicar sempre com `-r win-x64 --self-contained true`.
+- Achado na instalação: publicar sem `--self-contained` gera serviços que não sobem (o PC só tem .NET 6); publicar sempre com `-r win-x64 --self-contained true` (desde 2026-11-07: `scripts/install/publish.ps1`, que já faz isso).
 - Pendente: ver a carga parar em 80% depois de descarregar abaixo disso com o limite ligado.
 
 ## Configurações
@@ -183,6 +183,47 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - desligar a opção na tela;
 - `sc stop KillerSense` (zera ao parar);
 - reiniciar o PC.
+
+## Peso e eficiência (2026-11-07)
+
+Comparação com o PredatorSense, medida com os dois rodando (o PredatorSense aberto em segundo plano desde o login):
+
+| | killer-sense | PredatorSense 5.0.1341 (Electron) |
+|---|---|---|
+| RAM com a janela fechada (total / privada) | ~141 MB / ~81 MB (serviço 74/53, watchdog 36/10, bandeja ~31/18) | 407 MB / 510 MB, só os 4 processos do app |
+| CPU média | serviço ~3,5 ms/s, watchdog 0,26 ms/s | app 2,8–4,7 ms/s |
+| Disco | 365 MB, 702 arquivos | 491 MB, só o app |
+
+Mudanças feitas a partir disso:
+- **Uma leitura do modo das fans por ciclo**: `GetGamingFanBehavior(0x09)` devolve as duas fans (formato do A7). Cada leitura do modo é um SMI, que pausa todos os núcleos por um instante. Antes eram 2 por segundo com as duas fans em curva, mais 2 ao detectar mudança externa e 2 a cada `RestoreAuto`. Agora é 1 em cada caso, e nenhuma com as duas no Auto.
+- **Publicação** (`scripts/install/publish.ps1`):
+  - sem `.pdb`: os do SkiaSharp e do HarfBuzz somavam ~100 MB;
+  - sem o ANGLE (`av_libglesv2.dll`): o desenho é sempre pela CPU;
+  - sem o `packages.lock.json`;
+  - app com trimming;
+  - serviço e watchdog dividindo uma só cópia do .NET em `Services\`. O script confere que todo arquivo em comum é idêntico.
+  - Resultado: **365 → 119 MB** (app 205 → 39 MB; serviços 160 → 80 MB).
+  - O trimming do serviço e do watchdog foi descartado: a biblioteca de WMI (`Microsoft.Management.Infrastructure`) e o Serilog geram avisos de trimming, e o WMI é o caminho do failsafe.
+- **GC sem a thread em segundo plano** no serviço e no watchdog (como já era no app). Medido no serviço simulado: −2 threads; a memória quase não muda (44,8 → 44,2 MB de working set).
+- **A leitura da bateria (a cada 5 s) só roda com a página Bateria aberta**. Antes rodava também só na bandeja.
+
+**App com trimming** (2026-11-07, serviço simulado, mesma automação de interface nos dois):
+
+| | antes | depois |
+|---|---|---|
+| Janela aberta no Painel | 98,7 MB / 38,3 MB | 89,1 MB / 36,7 MB |
+| Depois de passar pelas 9 páginas | 154,4 MB / 80,1 MB | 144,8 MB / 78,8 MB |
+| Só na bandeja | 24,7 MB / 45,8 MB | 20,0 MB / 46,6 MB |
+| Tempo até a janela aparecer | 0,64–0,75 s | 0,81–0,95 s |
+
+- No tempo até a janela, a versão nova rodou da pasta do OneDrive e a antiga de Program Files.
+- As 9 páginas abriram com dados ao vivo do simulado.
+- A árvore de acessibilidade (UI Automation) ficou igual: 52 elementos e 10 botões.
+
+**Pendente:**
+- instalar com `update-services.ps1`, que migra de `Service\` e `Watchdog\` para `Services\`;
+- repetir o T3/T4 (parada normal e kill do serviço) com a nova pasta;
+- medir a RAM do serviço real.
 
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").
