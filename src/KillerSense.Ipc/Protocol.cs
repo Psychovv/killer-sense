@@ -92,6 +92,23 @@ public static class IpcProtocol
         }
     }
 
+    /// <summary>Perfis do usuário em JSON legível (profiles.json da interface e exportação).</summary>
+    public static string SerializeUserProfiles(UserProfileSet set) =>
+        JsonSerializer.Serialize(set, IpcJsonContext.Indented.UserProfileSet);
+
+    /// <summary>Lê perfis do usuário; null se o JSON for inválido (a validação vem depois).</summary>
+    public static UserProfileSet? ParseUserProfiles(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, IpcJsonContext.Default.UserProfileSet);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Lê uma mensagem do serviço; null se o JSON for inválido.</summary>
     public static IpcMessage? ParseMessage(string line)
     {
@@ -245,6 +262,7 @@ public sealed record ServiceState(
 [JsonSerializable(typeof(FanProfileDto))]
 [JsonSerializable(typeof(GpuOffsetSettingsDto))]
 [JsonSerializable(typeof(LightingSettingsDto))]
+[JsonSerializable(typeof(UserProfileSet))]
 internal sealed partial class IpcJsonContext : JsonSerializerContext
 {
     private static IpcJsonContext? s_indented;
