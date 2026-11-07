@@ -84,9 +84,6 @@
           <DataTemplate DataType="vm:LightingViewModel">
             <v:LightingView />
           </DataTemplate>
-          <DataTemplate DataType="vm:KeyboardViewModel">
-            <v:KeyboardView />
-          </DataTemplate>
           <DataTemplate DataType="vm:GpuViewModel">
             <v:GpuView />
           </DataTemplate>

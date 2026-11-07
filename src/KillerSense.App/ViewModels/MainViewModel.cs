@@ -15,7 +15,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Profiles = new ProfilesViewModel();
         Battery = new BatteryViewModel(client, Dashboard);
         Lighting = new LightingViewModel();
-        Keyboard = new KeyboardViewModel();
         Gpu = new GpuViewModel(client, Dashboard);
         Settings = new SettingsViewModel();
 
@@ -27,7 +26,6 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Perfis", Profiles, isPreview: true),
             new(this, "Bateria", Battery),
             new(this, "Iluminação", Lighting, isPreview: true),
-            new(this, "Teclado e sistema", Keyboard, isPreview: true),
             new(this, "GPU", Gpu),
             new(this, "Configurações", Settings),
         ];
@@ -46,13 +44,15 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 
     public LightingViewModel Lighting { get; }
 
-    public KeyboardViewModel Keyboard { get; }
 
     public GpuViewModel Gpu { get; }
 
     public SettingsViewModel Settings { get; }
 
-    /// <summary>Itens do menu lateral, na ordem do roteiro (fans → modos → bateria → teclado/extras → GPU).</summary>
+    /// <summary>
+    /// Itens do menu lateral. Tecla de modos, USB desligado, overdrive e trava da tecla Windows ficam com o
+    /// PredatorSense (decisão de 2026-11-07).
+    /// </summary>
     public IReadOnlyList<NavItemViewModel> Pages { get; }
 
     [ObservableProperty]
