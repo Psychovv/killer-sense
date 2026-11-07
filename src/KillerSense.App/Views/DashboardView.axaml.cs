@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using KillerSense.App.ViewModels;
 
 namespace KillerSense.App.Views;
 
@@ -16,6 +17,19 @@ public sealed partial class DashboardView : UserControl
     {
         InitializeComponent();
         Cards.SizeChanged += (_, e) => Arrange((e.NewSize.Width - 16) / 2);
+    }
+
+    // Uso da CPU, RAM e programas só são lidos com o Painel visível: trocar de página ou fechar a janela para.
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        (DataContext as DashboardViewModel)?.Live.Start();
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        (DataContext as DashboardViewModel)?.Live.Stop();
+        base.OnDetachedFromVisualTree(e);
     }
 
     private void Arrange(double cardWidth)

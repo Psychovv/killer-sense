@@ -25,11 +25,17 @@
                 <TextBlock Classes="label" Text="i7-14700HX" HorizontalAlignment="Center" />
               </StackPanel>
             </Panel>
-            <Grid x:Name="CpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
+            <Grid x:Name="CpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
               <TextBlock Classes="label" Text="Fan" FontSize="14" />
               <TextBlock Grid.Column="1" Classes="value" Text="{Binding CpuFanText}" />
               <TextBlock Grid.Row="1" Classes="label" Text="Rotação" FontSize="14" />
               <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding CpuRpmText}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="Uso" FontSize="14" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding Live.CpuUsageText}" />
+              <TextBlock Grid.Row="3" Classes="label" Text="Clock" FontSize="14" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding Live.CpuClockText}" />
+              <TextBlock Grid.Row="4" Classes="label" Text="Potência" FontSize="14" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Classes="value" Text="{Binding Live.CpuPowerText}" />
             </Grid>
           </Grid>
         </Border>
@@ -48,22 +54,74 @@
                 <TextBlock Classes="label" Text="RTX 4070 Laptop" HorizontalAlignment="Center" />
               </StackPanel>
             </Panel>
-            <Grid x:Name="GpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
+            <Grid x:Name="GpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
               <TextBlock Classes="label" Text="Fan" FontSize="14" />
               <TextBlock Grid.Column="1" Classes="value" Text="{Binding GpuFanText}" TextWrapping="Wrap" MaxWidth="170" TextAlignment="Right" />
               <TextBlock Grid.Row="1" Classes="label" Text="Rotação" FontSize="14" />
               <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding GpuRpmText}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="Uso" FontSize="14" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding Live.GpuUsageText}" />
+              <TextBlock Grid.Row="3" Classes="label" Text="Clock" FontSize="14" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding Live.GpuClockText}" />
+              <TextBlock Grid.Row="4" Classes="label" Text="Potência" FontSize="14" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Classes="value" Text="{Binding Live.GpuPowerText}" />
             </Grid>
           </Grid>
+        </Border>
+      </Grid>
+
+      <!-- Memória e programas -->
+      <Grid ColumnDefinitions="*,16,*">
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h2" Text="Memória" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="value" FontSize="26" Text="{Binding Live.RamUsedText}" />
+              <TextBlock Classes="label" Text="{Binding Live.RamTotalText}" VerticalAlignment="Bottom" Margin="0,0,0,4" />
+            </StackPanel>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Live.RamPercent}" Height="8" MinHeight="8" CornerRadius="4"
+                         Foreground="{StaticResource KsAccentBrush}" Background="{StaticResource KsCard2Brush}"
+                         AutomationProperties.Name="Memória em uso" />
+            <TextBlock Classes="label" Text="{Binding Live.RamPercentText}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="card">
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="*,70,80">
+              <TextBlock Classes="h2" Text="Programas que mais pesam" TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="1" Classes="label" Text="CPU" TextAlignment="Right" VerticalAlignment="Bottom" />
+              <TextBlock Grid.Column="2" Classes="label" Text="Memória" TextAlignment="Right" VerticalAlignment="Bottom" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Live.Programs}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ProgramRow">
+                  <Grid ColumnDefinitions="*,70,80" Margin="0,3">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontSize="14" />
+                    <TextBlock Grid.Column="1" Classes="value" Text="{Binding CpuText}" TextAlignment="Right" />
+                    <TextBlock Grid.Column="2" Classes="label" Text="{Binding MemoryText}" TextAlignment="Right" FontSize="14" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Classes="label" Text="{Binding Live.ProgramsStatus}" IsVisible="{Binding Live.ProgramsStatus, Converter={x:Static ObjectConverters.IsNotNull}}" />
+            <TextBlock Classes="label" FontSize="12" TextWrapping="Wrap"
+                       Text="CPU em % de todos os núcleos, como no Gerenciador de Tarefas; processos com o mesmo nome somados." />
+          </StackPanel>
         </Border>
       </Grid>
 
       <!-- Histórico -->
       <Border Classes="card">
         <StackPanel Spacing="10">
-          <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Classes="label" Text="{Binding HistoryRangeText}" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+            <TextBlock Classes="label" Text="{Binding HistoryRangeText}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+              <Button Classes="nav" Classes.on="{Binding !ChartShowsUsage}" Content="Temperatura" Command="{Binding ShowTemperatureCommand}"
+                      Padding="10,5" AutomationProperties.Name="Gráfico de temperatura" />
+              <Button Classes="nav" Classes.on="{Binding ChartShowsUsage}" Content="Uso" Command="{Binding ShowUsageCommand}"
+                      Padding="10,5" AutomationProperties.Name="Gráfico de uso" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Border Width="10" Height="3" Background="{StaticResource KsAccentBrush}" VerticalAlignment="Center" />
                 <TextBlock Classes="label" Text="CPU" />
@@ -74,7 +132,7 @@
               </StackPanel>
             </StackPanel>
           </Grid>
-          <c:LineChart Height="170" Series="{Binding History}" Minimum="30" Maximum="100" Capacity="120"
+          <c:LineChart Height="170" Series="{Binding History}" Minimum="{Binding ChartMinimum}" Maximum="100" Capacity="120"
                        GridBrush="{StaticResource KsLineBrush}" />
         </StackPanel>
       </Border>

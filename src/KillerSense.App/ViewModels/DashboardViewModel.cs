@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -21,11 +22,16 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     private readonly ServiceClient _client;
     private readonly Queue<double> _cpuHistory = new();
     private readonly Queue<double> _gpuHistory = new();
+    private readonly Queue<double> _cpuUsageHistory = new();
+    private readonly Queue<double> _gpuUsageHistory = new();
     private EngineState? _lastState;
+    private double? _cpuUsageNow;
+    private long _cpuUsageAt;
 
     public DashboardViewModel(ServiceClient client)
     {
         _client = client;
+        Live = new LiveStatsViewModel(this);
         _client.StateReceived += s => Dispatcher.UIThread.Post(() => Apply(s));
         _client.ConnectionChanged += c => Dispatcher.UIThread.Post(() => SetConnected(c));
         SetConnected(false);
@@ -43,10 +49,41 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     [ObservableProperty] public partial string TemperatureUnitLabel { get; set; } = " °C";
     [ObservableProperty] public partial string HistoryRangeText { get; set; } = "";
 
+    /// <summary>Uso, clock e potência ao vivo, RAM e programas (lidos só com o Painel aberto).</summary>
+    public LiveStatsViewModel Live { get; }
+
+    /// <summary>O gráfico mostra o uso (0–100%) em vez das temperaturas.</summary>
+    [ObservableProperty] public partial bool ChartShowsUsage { get; set; }
+
+    /// <summary>Base do gráfico: 30 (temperatura) ou 0 (uso).</summary>
+    [ObservableProperty] public partial double ChartMinimum { get; set; } = 30;
+
+    [RelayCommand]
+    private void ShowTemperature() => ChartShowsUsage = false;
+
+    [RelayCommand]
+    private void ShowUsage() => ChartShowsUsage = true;
+
+    partial void OnChartShowsUsageChanged(bool value)
+    {
+        ChartMinimum = value ? 0 : 30;
+        UpdateTemperatureTexts();
+        RebuildHistory();
+    }
+
+    /// <summary>Última leitura do uso da CPU (o Painel lê a cada 1 s); entra no gráfico junto com o estado do serviço.</summary>
+    internal void ReportCpuUsage(double? percent)
+    {
+        _cpuUsageNow = percent;
+        _cpuUsageAt = Stopwatch.GetTimestamp();
+    }
+
     private void UpdateTemperatureTexts()
     {
         TemperatureUnitLabel = " " + Temperatures.Unit;
-        HistoryRangeText = $"Últimos 2 minutos ({Temperatures.Number(30)}–{Temperatures.Number(100)} {Temperatures.Unit})";
+        HistoryRangeText = ChartShowsUsage
+            ? "Últimos 2 minutos (uso, 0–100%; a CPU só é medida com o Painel aberto)"
+            : $"Últimos 2 minutos ({Temperatures.Number(30)}–{Temperatures.Number(100)} {Temperatures.Unit})";
         CpuTemperatureText = Temperatures.Number(CpuTemperature);
         GpuTemperatureText = Temperatures.Number(GpuTemperature);
     }
@@ -155,8 +192,15 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
         IsPaused = s.State is EngineState.Paused or EngineState.ExternalOverride or EngineState.FirmwareFault or EngineState.Disabled;
         Push(_cpuHistory, s.CpuTemperature);
         Push(_gpuHistory, s.GpuTemperature);
-        History = [new ChartSeries(_gpuHistory.ToArray(), GpuBrush), new ChartSeries(_cpuHistory.ToArray(), AccentColor.Brush)];
+        var cpuUsageFresh = _cpuUsageNow is not null && Stopwatch.GetElapsedTime(_cpuUsageAt) < TimeSpan.FromSeconds(2.5);
+        Push(_cpuUsageHistory, cpuUsageFresh ? _cpuUsageNow : null);
+        Push(_gpuUsageHistory, s.Gpu?.UtilizationPercent);
+        RebuildHistory();
     }
+
+    private void RebuildHistory() => History = ChartShowsUsage
+        ? [new ChartSeries(_gpuUsageHistory.ToArray(), GpuBrush), new ChartSeries(_cpuUsageHistory.ToArray(), AccentColor.Brush)]
+        : [new ChartSeries(_gpuHistory.ToArray(), GpuBrush), new ChartSeries(_cpuHistory.ToArray(), AccentColor.Brush)];
 
     private static string FanText(FanMode mode, int? percent) => mode switch
     {
