@@ -3,7 +3,8 @@ namespace KillerSense.Core;
 /// <summary>
 /// Luz do teclado no serviço. Com o controle DESLIGADO (padrão) não há nenhuma chamada ao firmware da luz:
 /// a configuração só é guardada. Ligado, grava a pedido e ao iniciar o serviço, e confere lendo de volta.
-/// Não "segura" a luz: se o PredatorSense ou o modo Eco mudarem depois, vale a mudança deles até o próximo pedido.
+/// Não "segura" a luz o tempo todo: só confere de novo depois dos momentos em que o serviço de luz da Acer
+/// regrava a dele (ver <see cref="LightingRecheck"/>). Fora disso, vale a mudança do PredatorSense ou do modo Eco.
 /// </summary>
 public sealed class LightingController
 {
@@ -45,6 +46,22 @@ public sealed class LightingController
     public bool ApplyIfEnabled(bool allowed)
     {
         if (!Settings.Enabled || !allowed)
+        {
+            return false;
+        }
+
+        Apply();
+        return true;
+    }
+
+    /// <summary>
+    /// Confere o teclado e regrava só se outra luz entrou no lugar (ex.: o serviço de luz da Acer ao acordar do
+    /// standby). True = regravou. Com o controle desligado ou sem permissão, nenhuma chamada.
+    /// </summary>
+    /// <exception cref="FirmwareException">A leitura falhou, o firmware recusou ou a leitura não bateu.</exception>
+    public bool EnsureApplied(bool allowed)
+    {
+        if (!Settings.Enabled || !allowed || Settings.Lighting.SameVisibleAs(_fw.GetKeyboardLighting()))
         {
             return false;
         }

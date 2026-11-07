@@ -31,6 +31,7 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly GpuOffsetStore? _gpuOffsetStore;
     private readonly LightingController _lighting;
     private readonly LightingStore? _lightingStore;
+    private readonly LightingRecheck _lightingRecheck = new();
     private bool _suspended;
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
     private bool? _lastLoggedChargeLimit;
@@ -239,6 +240,34 @@ public sealed partial class FanControlWorker : BackgroundService
         }
     }
 
+    /// <summary>Confere a luz e regrava se outro programa trocou (ver <see cref="LightingRecheck"/>).</summary>
+    private void EnsureLighting(string reason)
+    {
+        try
+        {
+            lock (_gate)
+            {
+                if (_lighting.EnsureApplied(LightingAllowed))
+                {
+                    LogLightingRestored(_log, reason, _lighting.Settings.Lighting);
+                }
+            }
+        }
+        catch (FirmwareException ex)
+        {
+            LogLightingApplyFailed(_log, ex, reason);
+        }
+    }
+
+    /// <summary>Entrada na sessão (login, desbloqueio): o serviço de luz da Acer pode regravar a luz dele.</summary>
+    public void SessionStarted(string reason)
+    {
+        lock (_gate)
+        {
+            _lightingRecheck.Start(reason);
+        }
+    }
+
     /// <summary>Suspensão do Windows: Auto antes de dormir e controle pausado.</summary>
     public void Suspend() => Guarded("suspensão", () =>
     {
@@ -253,6 +282,7 @@ public sealed partial class FanControlWorker : BackgroundService
         _engine.RestoreAuto();
         _engine.Resume();
         _gpuOffsets.Recheck(); // confere se o driver manteve o offset
+        _lightingRecheck.Start("retomada da suspensão");
     });
 
     /// <summary>Melhor esforço para devolver o Auto (desligamento, exceção não tratada).</summary>
@@ -288,9 +318,11 @@ public sealed partial class FanControlWorker : BackgroundService
         }
         LogStarted(_log);
         ApplyLightingIfEnabled("início do serviço");
+        SessionStarted("início do serviço"); // o serviço da Acer pode gravar a luz dele depois do nosso início
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var sw = Stopwatch.StartNew();
+        var lastWall = DateTime.UtcNow;
         var ipcLoop = Task.Run(() => _ipc.RunAsync(stoppingToken), stoppingToken);
         try
         {
@@ -298,19 +330,43 @@ public sealed partial class FanControlWorker : BackgroundService
             {
                 var dt = sw.Elapsed.TotalSeconds;
                 sw.Restart();
+                var wallNow = DateTime.UtcNow;
+                var gap = Math.Max(dt, (wallNow - lastWall).TotalSeconds); // o relógio de parede cobre o standby
+                lastWall = wallNow;
+                var woke = LightingRecheck.IsWakeGap(gap);
                 var gpuReading = _gpu.Read(); // não acorda a GPU desligada
                 var gpuTemp = _gpuFeed.Update(gpuReading);
                 EngineSnapshot snap;
                 bool? chargeLimit;
                 GpuOffsetStatus gpuOffset;
+                bool recheckLighting;
+                string? recheckReason;
                 lock (_gate)
                 {
+                    if (woke)
+                    {
+                        _lightingRecheck.Start("volta do standby");
+                    }
+
+                    recheckLighting = !woke && _lightingRecheck.Tick(dt);
+                    recheckReason = _lightingRecheck.Reason;
+
                     snap = _engine.Tick(dt, gpuTemp);
                     var batteryAllowed = !_engine.IsDisabled && !_suspended; // desativado/suspenso: nenhuma chamada
                     _chargeLimit.Tick(dt, batteryAllowed);
                     _gpuOffsets.Tick(dt, snap.OperatingMode, gpuReading, allowed: batteryAllowed); // só com a GPU ligada
                     gpuOffset = _gpuOffsets.Status;
                     chargeLimit = batteryAllowed ? _chargeLimit.IsOn : null;
+                }
+
+                if (woke)
+                {
+                    LogWakeGap(_log, (long)gap);
+                }
+
+                if (recheckLighting)
+                {
+                    EnsureLighting(recheckReason ?? "conferência");
                 }
 
                 heartbeat.Beat(DateTime.UtcNow, snap.ManualActive);
@@ -395,6 +451,12 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Falha ao ler a luz do teclado.")]
     private static partial void LogLightingReadFailed(ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Luz do teclado regravada ({Reason}): outro programa tinha trocado a luz (provavelmente o serviço de luz da Acer). Agora: {Lighting}.")]
+    private static partial void LogLightingRestored(ILogger logger, string reason, KeyboardLighting lighting);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "O serviço ficou parado {Seconds} s (standby ou hibernação).")]
+    private static partial void LogWakeGap(ILogger logger, long seconds);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Modo de operação trocado pela interface: {Mode}.")]
     private static partial void LogModeSet(ILogger logger, OperatingMode mode);

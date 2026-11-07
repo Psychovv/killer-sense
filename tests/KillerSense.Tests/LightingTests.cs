@@ -325,6 +325,61 @@ public class LightingControllerTests
     }
 
     [Fact]
+    public void Conferencia_so_regrava_quando_outro_programa_trocou_a_luz()
+    {
+        var fw = new SimulatedFirmware();
+        var ctl = new LightingController(fw, LightingSettings.Default);
+        ctl.SetSettings(new LightingSettings(true, Red), allowed: true);
+        var before = fw.Calls.Count;
+
+        Assert.False(ctl.EnsureApplied(allowed: true)); // igual: só lê
+        Assert.Equal(["GetKeyboardLighting"], fw.Calls.Skip(before));
+
+        fw.Lighting = KeyboardLighting.Default with { Effect = KeyboardEffect.Wave }; // o serviço da Acer regravou a Onda
+        Assert.True(ctl.EnsureApplied(allowed: true));
+        Assert.True(Red.SameVisibleAs(fw.Lighting));
+    }
+
+    [Fact]
+    public void Conferencia_com_controle_desligado_ou_sem_permissao_nao_chama_o_firmware()
+    {
+        var fw = new SimulatedFirmware();
+        var off = new LightingController(fw, LightingSettings.Default);
+        Assert.False(off.EnsureApplied(allowed: true));
+        var on = new LightingController(fw, new LightingSettings(true, Red));
+        Assert.False(on.EnsureApplied(allowed: false));
+        Assert.Empty(fw.Calls);
+    }
+
+    [Fact]
+    public void Conferencias_depois_de_acordar_aos_10_e_aos_40_segundos()
+    {
+        var r = new LightingRecheck();
+        Assert.False(r.Tick(100));
+        r.Start("volta do standby");
+        var due = Enumerable.Range(1, 60).Where(_ => r.Tick(1)).ToArray();
+        Assert.Equal(2, due.Length);
+        Assert.False(r.IsPending);
+        Assert.Equal("volta do standby", r.Reason);
+
+        r.Start("login");
+        Assert.False(r.Tick(9));
+        r.Start("desbloqueio"); // evento novo recomeça a contagem
+        Assert.False(r.Tick(9));
+        Assert.True(r.Tick(1));
+        Assert.True(r.IsPending);
+    }
+
+    [Fact]
+    public void Intervalo_grande_entre_ciclos_e_volta_do_standby()
+    {
+        Assert.False(LightingRecheck.IsWakeGap(1.2));
+        Assert.False(LightingRecheck.IsWakeGap(5));
+        Assert.True(LightingRecheck.IsWakeGap(5.5));
+        Assert.True(LightingRecheck.IsWakeGap(14 * 60));
+    }
+
+    [Fact]
     public void Falha_do_firmware_sobe()
     {
         var fw = new SimulatedFirmware { FailNextCall = "SetKeyboardLighting" };

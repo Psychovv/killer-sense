@@ -23,7 +23,19 @@ public sealed class KillerSenseServiceLifetime : WindowsServiceLifetime
     {
         _worker = worker;
         CanHandlePowerEvent = true;
+        CanHandleSessionChangeEvent = true;
         CanShutdown = true;
+    }
+
+    protected override void OnSessionChange(SessionChangeDescription changeDescription)
+    {
+        // Ao entrar na sessão o serviço de luz da Acer pode regravar a luz dele: confere a do killer-sense.
+        if (changeDescription.Reason is SessionChangeReason.SessionLogon or SessionChangeReason.SessionUnlock)
+        {
+            _worker.SessionStarted(changeDescription.Reason == SessionChangeReason.SessionLogon ? "login" : "desbloqueio");
+        }
+
+        base.OnSessionChange(changeDescription);
     }
 
     protected override bool OnPowerEvent(PowerBroadcastStatus powerStatus)
