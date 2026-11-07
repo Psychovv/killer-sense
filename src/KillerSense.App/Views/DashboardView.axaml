@@ -9,10 +9,10 @@
       <TextBlock Text="{Binding StateDetail}" Classes="label" TextWrapping="Wrap" IsVisible="{Binding StateDetail, Converter={x:Static ObjectConverters.IsNotNull}}" />
       <TextBlock Text="{Binding CommandError}" Foreground="{StaticResource KsHotBrush}" TextWrapping="Wrap" IsVisible="{Binding CommandError, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-      <Grid ColumnDefinitions="*,16,*">
+      <Grid x:Name="Cards" ColumnDefinitions="*,16,*">
         <!-- CPU -->
         <Border Classes="card">
-          <Grid ColumnDefinitions="190,22,*">
+          <Grid x:Name="CpuLayout" ColumnDefinitions="190,22,*">
             <Panel Width="190" Height="190">
               <c:Gauge Value="{Binding CpuTemperature}" Maximum="100" Thickness="12"
                        TrackBrush="{StaticResource KsCard2Brush}" ValueBrush="{StaticResource KsAccentBrush}" />
@@ -25,7 +25,7 @@
                 <TextBlock Classes="label" Text="i7-14700HX" HorizontalAlignment="Center" />
               </StackPanel>
             </Panel>
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
+            <Grid x:Name="CpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
               <TextBlock Classes="label" Text="Fan" FontSize="14" />
               <TextBlock Grid.Column="1" Classes="value" Text="{Binding CpuFanText}" />
               <TextBlock Grid.Row="1" Classes="label" Text="Rotação" FontSize="14" />
@@ -35,7 +35,7 @@
         </Border>
         <!-- GPU -->
         <Border Grid.Column="2" Classes="card">
-          <Grid ColumnDefinitions="190,22,*">
+          <Grid x:Name="GpuLayout" ColumnDefinitions="190,22,*">
             <Panel Width="190" Height="190">
               <c:Gauge Value="{Binding GpuTemperature}" Maximum="100" Thickness="12"
                        TrackBrush="{StaticResource KsCard2Brush}" ValueBrush="{StaticResource KsAccent2Brush}" />
@@ -48,7 +48,7 @@
                 <TextBlock Classes="label" Text="RTX 4070 Laptop" HorizontalAlignment="Center" />
               </StackPanel>
             </Panel>
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
+            <Grid x:Name="GpuStats" Grid.Column="2" ColumnSpacing="12" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" VerticalAlignment="Center" RowSpacing="10">
               <TextBlock Classes="label" Text="Fan" FontSize="14" />
               <TextBlock Grid.Column="1" Classes="value" Text="{Binding GpuFanText}" TextWrapping="Wrap" MaxWidth="170" TextAlignment="Right" />
               <TextBlock Grid.Row="1" Classes="label" Text="Rotação" FontSize="14" />
