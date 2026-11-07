@@ -26,12 +26,13 @@
 
   <ScrollViewer>
     <StackPanel Margin="24,22" Spacing="16">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Classes="label" VerticalAlignment="Center" Text="Preferências desta interface. Não mudam nada no serviço das fans." />
-        <Button Grid.Column="1" Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+        <TextBlock Classes="label" VerticalAlignment="Center" TextWrapping="Wrap" Text="Preferências desta interface. Não mudam nada no serviço das fans." />
+        <Button Grid.Column="1" Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" VerticalAlignment="Center" />
       </Grid>
 
-      <Grid ColumnDefinitions="*,16,*">
+      <!-- Duas colunas; vira uma só quando a página fica estreita (SettingsView.axaml.cs). -->
+      <Grid x:Name="Columns" ColumnDefinitions="*,16,*" RowDefinitions="Auto,Auto">
         <StackPanel Spacing="16">
           <!-- Geral -->
           <Border Classes="card">
@@ -60,50 +61,51 @@
           <Border Classes="card">
             <StackPanel Spacing="12">
               <TextBlock Classes="h2" Text="Unidades" />
-              <StackPanel Orientation="Horizontal" Spacing="24">
+              <WrapPanel ItemSpacing="24" LineSpacing="4">
                 <RadioButton GroupName="units" Content="Celsius (°C)" IsChecked="{Binding UseCelsius}" />
                 <RadioButton GroupName="units" Content="Fahrenheit (°F)" IsChecked="{Binding UseFahrenheit}" />
-              </StackPanel>
+              </WrapPanel>
             </StackPanel>
           </Border>
 
           <!-- Aparência -->
           <Border Classes="card">
-            <StackPanel Spacing="12">
+            <StackPanel Spacing="16">
               <TextBlock Classes="h2" Text="Aparência" />
-              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                <TextBlock Classes="label" Text="Tema" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24">
+              <!-- Rótulo em cima e opções que quebram linha: cabe em coluna estreita. -->
+              <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="Tema" />
+                <WrapPanel ItemSpacing="24" LineSpacing="4">
                   <RadioButton GroupName="theme" Content="Grafite (escuro)" IsChecked="{Binding UseGrafite}" />
                   <RadioButton GroupName="theme" Content="Metal (escuro)" IsChecked="{Binding UseMetal}" />
                   <RadioButton GroupName="theme" Content="Claro (em breve)" IsEnabled="False" />
+                </WrapPanel>
+              </StackPanel>
+              <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Classes="label" Text="Cor de destaque ·" />
+                  <TextBlock Classes="label" Text="{Binding SelectedAccent.Name}" Foreground="{StaticResource KsTextBrush}" />
                 </StackPanel>
-              </Grid>
-              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                <TextBlock Classes="label" Text="Cor de destaque" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-                  <ItemsControl ItemsSource="{Binding Accents}">
-                    <ItemsControl.ItemsPanel>
-                      <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="10" />
-                      </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="vm:AccentViewModel">
-                        <Button Classes="swatch" Classes.on="{Binding IsSelected}" Command="{Binding SelectCommand}" ToolTip.Tip="{Binding Name}">
-                          <Button.Background><SolidColorBrush Color="{Binding Color}" /></Button.Background>
-                        </Button>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
-                  <TextBlock Classes="label" Text="{Binding SelectedAccent.Name}" VerticalAlignment="Center" />
-                </StackPanel>
-              </Grid>
+                <ItemsControl ItemsSource="{Binding Accents}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel ItemSpacing="10" LineSpacing="10" />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AccentViewModel">
+                      <Button Classes="swatch" Classes.on="{Binding IsSelected}" Command="{Binding SelectCommand}" ToolTip.Tip="{Binding Name}">
+                        <Button.Background><SolidColorBrush Color="{Binding Color}" /></Button.Background>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </StackPanel>
           </Border>
         </StackPanel>
 
-        <StackPanel Grid.Column="2" Spacing="16">
+        <StackPanel x:Name="RightColumn" Grid.Column="2" Spacing="16">
           <!-- Serviço -->
           <Border Classes="card">
             <StackPanel Spacing="12">
