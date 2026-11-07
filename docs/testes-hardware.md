@@ -184,6 +184,34 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 - `sc stop KillerSense` (zera ao parar);
 - reiniciar o PC.
 
+## Fase 4.4 — luz do teclado
+
+### T16 — luz do teclado pela página Iluminação (PENDENTE: testar junto com o usuário)
+
+Feito em 2026-11-07 e testado só no simulado (testes de unidade + a página contra o serviço simulado). No notebook, o controle da luz vem **desligado**: sem ligar a opção, o serviço não faz nenhuma chamada de luz ao firmware.
+
+O que o serviço manda, igual à DLL da Acer (detalhes em docs/acer-interface.md, "Teclado"):
+1. `SetGamingLED [8, 0, 0, 0, 0, zonas]`: zonas acesas.
+2. `SetGamingKBBacklight [efeito, velocidade, brilho, 0, direção, R, G, B, 3, 1]`: só o teclado.
+3. No estático, `SetGamingRgbKb` em cada zona, com 30 ms entre elas. Zona apagada recebe preto.
+4. Lê de volta (`GetGamingKBBacklight`, `GetGamingRgbKb`, `GetGamingLED`, só leituras do EC) e confere.
+
+A lista de permissão só aceita essas três escritas com o alvo "teclado". `SetGamingLED` com `[0] = 1` (Turbo) e a light bar ficam bloqueados.
+
+Roteiro (com o usuário olhando o teclado):
+1. Instalar a versão nova (`update-services.ps1`, UAC).
+2. Página Iluminação → "No teclado agora" deve aparecer como "não lido". Ligar "Controlar a luz" e salvar sem mudar nada. A primeira leitura deve bater com o PredatorSense.
+3. Estático com as 4 zonas em cores diferentes. Conferir a ordem (zona 1 = esquerda).
+4. Apagar uma zona; brilho 30; brilho 0 (deve apagar tudo).
+5. Cada efeito, com velocidade 1 e 9. Conferir se o número do efeito bate com o nome (Respiração, Neon, Onda, Deslocamento, Zoom, Meteoro, Cintilante) e se a direção da Onda e do Deslocamento bate com a tela.
+6. Reiniciar o serviço: ele deve regravar a luz salva ao iniciar.
+7. Para reverter: desligar "Controlar a luz" e escolher a luz no PredatorSense.
+
+O que ainda é SUPOSIÇÃO até esse teste:
+- direção 1 = direita e 2 = esquerda (enum do PredatorSense);
+- `KBST` acender e apagar zonas no estático;
+- o EC guardar a luz depois de reiniciar ou suspender. Se não guardar, o serviço já regrava ao iniciar; falta ver a volta da suspensão.
+
 ## Peso e eficiência (2026-11-07)
 
 Comparação com o PredatorSense, medida com os dois rodando (o PredatorSense aberto em segundo plano desde o login):

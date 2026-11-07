@@ -35,8 +35,33 @@
 
   <ScrollViewer>
     <StackPanel Margin="24,22" Spacing="16">
-      <Border Classes="preview">
-        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço. Cores, efeito e brilho ficam só nesta janela; nada é enviado ao teclado (formato a confirmar no teste A9)." />
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Classes="label" TextWrapping="Wrap" VerticalAlignment="Center"
+                   Text="Teclado de 4 zonas, com os mesmos efeitos do PredatorSense. A configuração fica no serviço; o teclado só muda com o controle da luz ligado." />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Classes="nav" Content="Descartar" Command="{Binding DiscardCommand}" IsEnabled="{Binding IsDirty}" Width="100" HorizontalContentAlignment="Center" />
+          <Button Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+        </StackPanel>
+      </Grid>
+
+      <!-- Liga/desliga do controle da luz -->
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Controlar a luz pelo killer-sense" />
+              <TextBlock Classes="label" TextWrapping="Wrap"
+                         Text="Desligado, o killer-sense não toca na luz do teclado: só guarda a configuração. Ligado, o serviço grava no teclado ao salvar e ao iniciar, e confere lendo de volta. Ainda não testado neste notebook." />
+            </StackPanel>
+            <ToggleSwitch Grid.Column="1" IsChecked="{Binding Enabled}" VerticalAlignment="Center" AutomationProperties.Name="Controlar a luz" />
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="24">
+            <TextBlock Classes="label" Text="No teclado agora" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="value" Text="{Binding CurrentText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <Button Grid.Column="2" Classes="nav" Content="Usar esta" Command="{Binding ReadKeyboardCommand}" IsEnabled="{Binding CanReadKeyboard}"
+                    ToolTip.Tip="Traz para a tela a luz que está no teclado agora." />
+          </Grid>
+        </StackPanel>
       </Border>
 
       <!-- Desenho do teclado -->
@@ -45,12 +70,9 @@
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="2">
               <TextBlock Classes="h2" Text="Teclado" />
-              <TextBlock Classes="label" Text="Clique numa zona para escolher a cor dela." />
+              <TextBlock Classes="label" Text="Prévia aproximada. No estático, clique numa zona para escolher a cor dela." />
             </StackPanel>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-              <Button Classes="nav" Content="Mesma cor em todas" Command="{Binding ApplyToAllCommand}" IsEnabled="{Binding UsesZoneColors}" />
-              <Button Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
-            </StackPanel>
+            <Button Grid.Column="1" Classes="nav" Content="Mesma cor em todas" Command="{Binding ApplyToAllCommand}" IsEnabled="{Binding UsesZoneColors}" VerticalAlignment="Center" />
           </Grid>
 
           <Border Background="#141417" CornerRadius="10" Padding="10" BorderBrush="{StaticResource KsLineBrush}" BorderThickness="1">
@@ -95,71 +117,77 @@
         <Border Classes="card">
           <StackPanel Spacing="14">
             <TextBlock Classes="h2" Text="Efeito" />
-            <ComboBox ItemsSource="{Binding Effects}" SelectedIndex="{Binding EffectIndex}" HorizontalAlignment="Stretch" />
+            <ComboBox ItemsSource="{x:Static vm:LightingViewModel.Effects}" SelectedIndex="{Binding EffectIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="Efeito">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:EffectOption">
+                  <TextBlock Text="{Binding Name}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
             <TextBlock Classes="label" Text="{Binding EffectHint}" TextWrapping="Wrap" />
 
-            <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="12" IsEnabled="{Binding !IsOff}">
+            <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="12">
               <TextBlock Classes="label" Text="Brilho" VerticalAlignment="Center" />
-              <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding Brightness}" />
+              <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding Brightness}" AutomationProperties.Name="Brilho" />
               <TextBlock Grid.Column="2" Text="{Binding Brightness, StringFormat='{}{0:0}%'}" VerticalAlignment="Center" Width="44" />
             </Grid>
             <Grid ColumnDefinitions="90,*,Auto" ColumnSpacing="12" IsVisible="{Binding UsesSpeed}">
               <TextBlock Classes="label" Text="Velocidade" VerticalAlignment="Center" />
-              <Slider Grid.Column="1" Minimum="1" Maximum="5" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Speed}" />
+              <Slider Grid.Column="1" Minimum="1" Maximum="9" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Speed}" AutomationProperties.Name="Velocidade" />
               <TextBlock Grid.Column="2" Text="{Binding Speed, StringFormat='{}{0:0}'}" VerticalAlignment="Center" Width="44" />
             </Grid>
             <Grid ColumnDefinitions="90,*" ColumnSpacing="12" IsVisible="{Binding UsesDirection}">
               <TextBlock Classes="label" Text="Direção" VerticalAlignment="Center" />
-              <ComboBox Grid.Column="1" ItemsSource="{Binding Directions}" SelectedIndex="{Binding DirectionIndex}" HorizontalAlignment="Stretch" />
+              <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:LightingViewModel.Directions}" SelectedIndex="{Binding DirectionIndex}" HorizontalAlignment="Stretch" />
             </Grid>
-
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
-              <StackPanel Spacing="2">
-                <TextBlock Text="Apagar após 30 s sem uso" />
-                <TextBlock Classes="label" Text="Acende de novo ao digitar." />
-              </StackPanel>
-              <ToggleSwitch Grid.Column="1" IsChecked="{Binding AutoOff}" VerticalAlignment="Center" />
-            </Grid>
+            <TextBlock Classes="label" TextWrapping="Wrap"
+                       Text="Brilho 0 apaga o teclado. O modo Eco da Acer também zera o brilho." />
           </StackPanel>
         </Border>
 
-        <!-- Cor da zona -->
-        <Border Grid.Column="2" Classes="card" IsEnabled="{Binding UsesZoneColors}">
+        <!-- Cor -->
+        <Border Grid.Column="2" Classes="card">
           <StackPanel Spacing="14">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Classes="h2" Text="{Binding SelectedZone.Name, StringFormat='Cor: {0}'}" />
-              <ToggleSwitch Grid.Column="1" IsChecked="{Binding SelectedZone.IsOn}" />
-            </Grid>
-            <ItemsControl ItemsSource="{Binding Palette}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel />
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:SwatchViewModel">
-                  <Button Classes="swatch" Command="{Binding ApplyCommand}" Margin="0,0,8,8">
-                    <Button.Background><SolidColorBrush Color="{Binding Color}" /></Button.Background>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <Grid ColumnDefinitions="Auto,120,Auto,*" ColumnSpacing="12">
-              <TextBlock Classes="label" Text="Hex" VerticalAlignment="Center" />
-              <TextBox Grid.Column="1" Text="{Binding SelectedZone.Hex}" MaxLength="7" />
-              <Border Grid.Column="2" Width="28" Height="28" CornerRadius="6" BorderBrush="{StaticResource KsLineBrush}" BorderThickness="1">
-                <Border.Background><SolidColorBrush Color="{Binding SelectedZone.Color}" /></Border.Background>
-              </Border>
-              <TextBlock Grid.Column="3" Text="Cor inválida (use #RRGGBB)" FontSize="12" Foreground="{StaticResource KsHotBrush}"
-                         VerticalAlignment="Center" IsVisible="{Binding SelectedZone.HexIsInvalid}" />
-            </Grid>
-            <TextBlock Classes="label" TextWrapping="Wrap"
-                       Text="Onda e Neon passam por todas as cores; nesses efeitos a cor por zona não é usada." />
+            <StackPanel Spacing="14" IsVisible="{Binding UsesColor}">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Classes="h2" Text="{Binding ColorTitle}" />
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding EditingColor.IsOn}" IsVisible="{Binding UsesZoneColors}"
+                              OnContent="Acesa" OffContent="Apagada" AutomationProperties.Name="Zona acesa" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Palette}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SwatchViewModel">
+                    <Button Classes="swatch" Command="{Binding ApplyCommand}" Margin="0,0,8,8">
+                      <Button.Background><SolidColorBrush Color="{Binding Color}" /></Button.Background>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Grid ColumnDefinitions="Auto,120,Auto,*" ColumnSpacing="12">
+                <TextBlock Classes="label" Text="Hex" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" Text="{Binding EditingColor.Hex}" MaxLength="7" />
+                <Border Grid.Column="2" Width="28" Height="28" CornerRadius="6" BorderBrush="{StaticResource KsLineBrush}" BorderThickness="1">
+                  <Border.Background><SolidColorBrush Color="{Binding EditingColor.Color}" /></Border.Background>
+                </Border>
+                <TextBlock Grid.Column="3" Text="Cor inválida (use #RRGGBB)" FontSize="12" Foreground="{StaticResource KsHotBrush}"
+                           VerticalAlignment="Center" IsVisible="{Binding EditingColor.HexIsInvalid}" />
+              </Grid>
+            </StackPanel>
+            <StackPanel Spacing="8" IsVisible="{Binding !UsesColor}">
+              <TextBlock Classes="h2" Text="Cor" />
+              <TextBlock Classes="label" TextWrapping="Wrap" Text="Este efeito escolhe as cores sozinho." />
+            </StackPanel>
           </StackPanel>
         </Border>
       </Grid>
 
-      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsWarnBrush}"
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                 Foreground="{Binding StatusIsError, Converter={x:Static vm:Converters.ErrorBrush}}"
                  IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
     </StackPanel>
   </ScrollViewer>

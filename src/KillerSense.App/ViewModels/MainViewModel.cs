@@ -14,7 +14,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         Modes = new ModesViewModel(client, Dashboard);
         Profiles = new ProfilesViewModel();
         Battery = new BatteryViewModel(client, Dashboard);
-        Lighting = new LightingViewModel();
+        Lighting = new LightingViewModel(client, Dashboard);
         Gpu = new GpuViewModel(client, Dashboard);
         Settings = new SettingsViewModel();
 
@@ -25,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Modos", Modes),
             new(this, "Perfis", Profiles, isPreview: true),
             new(this, "Bateria", Battery),
-            new(this, "Iluminação", Lighting, isPreview: true),
+            new(this, "Iluminação", Lighting),
             new(this, "GPU", Gpu),
             new(this, "Configurações", Settings),
         ];
@@ -122,6 +122,11 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         if (item.Page == Gpu && !Gpu.IsDirty && Dashboard.IsConnected)
         {
             await Gpu.LoadAsync().ConfigureAwait(true);
+        }
+
+        if (item.Page == Lighting && !Lighting.IsDirty && Dashboard.IsConnected)
+        {
+            await Lighting.LoadAsync().ConfigureAwait(true);
         }
     }
 
