@@ -7,12 +7,14 @@ namespace KillerSense.App.ViewModels;
 /// <summary>Janela principal: navegação entre as telas e a barra de estado comum.</summary>
 public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
 {
-    public MainViewModel(ServiceClient client)
+    /// <param name="profilesPath">Arquivo dos perfis do usuário; null = só em memória.</param>
+    public MainViewModel(ServiceClient client, string? profilesPath = null)
     {
         Dashboard = new DashboardViewModel(client);
         Fans = new FansViewModel(client, Dashboard);
         Modes = new ModesViewModel(client, Dashboard);
-        Profiles = new ProfilesViewModel();
+        Profiles = new ProfilesViewModel(client, Dashboard, profilesPath);
+        Profiles.Applied += OnProfileApplied;
         Battery = new BatteryViewModel(client, Dashboard);
         Lighting = new LightingViewModel(client, Dashboard);
         Gpu = new GpuViewModel(client, Dashboard);
@@ -23,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
             new(this, "Painel", Dashboard),
             new(this, "Fans", Fans),
             new(this, "Modos", Modes),
-            new(this, "Perfis", Profiles, isPreview: true),
+            new(this, "Perfis", Profiles),
             new(this, "Bateria", Battery),
             new(this, "Iluminação", Lighting),
             new(this, "GPU", Gpu),
@@ -125,6 +127,29 @@ public sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         }
 
         if (item.Page == Lighting && !Lighting.IsDirty && Dashboard.IsConnected)
+        {
+            await Lighting.LoadAsync().ConfigureAwait(true);
+        }
+    }
+
+    /// <summary>Depois de aplicar um perfil, as telas com configuração do serviço recarregam (se não houver edição pendente).</summary>
+    private async void OnProfileApplied()
+    {
+        if (!Fans.IsDirty)
+        {
+            Fans.IsLoaded = false;
+            if (CurrentNav.Page == Fans)
+            {
+                await Fans.LoadAsync().ConfigureAwait(true);
+            }
+        }
+
+        if (CurrentNav.Page == Gpu && !Gpu.IsDirty)
+        {
+            await Gpu.LoadAsync().ConfigureAwait(true);
+        }
+
+        if (CurrentNav.Page == Lighting && !Lighting.IsDirty)
         {
             await Lighting.LoadAsync().ConfigureAwait(true);
         }

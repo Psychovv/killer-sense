@@ -23,6 +23,7 @@ public sealed class App : Application, IDisposable
     private IClassicDesktopStyleApplicationLifetime? _desktop;
     private MainViewModel? _main;
     private TrayIcon? _tray;
+    private NativeMenuItem? _profilesMenu;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -34,10 +35,11 @@ public sealed class App : Application, IDisposable
             desktop.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             // --simulated: conecta no serviço rodando com firmware simulado (desenvolvimento).
-            var pipe = desktop.Args?.Contains("--simulated") == true ? IpcProtocol.SimulatedPipeName : IpcProtocol.PipeName;
+            var simulated = desktop.Args?.Contains("--simulated") == true;
+            var pipe = simulated ? IpcProtocol.SimulatedPipeName : IpcProtocol.PipeName;
             AppTheme.Apply(AppSettings.Current.Theme);
             AccentColor.Apply(AppSettings.Current.Accent);
-            _main = new MainViewModel(new ServiceClient(pipe));
+            _main = new MainViewModel(new ServiceClient(pipe), UserProfileFile.DefaultPath(simulated));
             _main.Dashboard.PropertyChanged += UpdateTooltip;
             _main.Start();
             // Abrir o killer-sense = controle ativo. Aberto pelo Windows (--autostart) respeita o último
@@ -70,15 +72,48 @@ public sealed class App : Application, IDisposable
         pause.Click += (_, _) => _main?.Dashboard.RestoreAutoCommand.Execute(null);
         var quit = new NativeMenuItem("Encerrar killer-sense (devolver ao PredatorSense)");
         quit.Click += async (_, _) => await QuitAsync().ConfigureAwait(true);
+        _profilesMenu = new NativeMenuItem("Perfis");
+        RebuildProfilesMenu();
+        if (_main is not null)
+        {
+            _main.Profiles.Profiles.CollectionChanged += (_, _) => RebuildProfilesMenu();
+            _main.Profiles.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(ProfilesViewModel.Active) or nameof(ProfilesViewModel.IsDirty))
+                {
+                    RebuildProfilesMenu();
+                }
+            };
+        }
 
         _tray = new TrayIcon
         {
             Icon = new WindowIcon(iconStream),
             ToolTipText = "killer-sense",
-            Menu = [open, pause, new NativeMenuItemSeparator(), quit],
+            Menu = [open, _profilesMenu, pause, new NativeMenuItemSeparator(), quit],
         };
         _tray.Clicked += (_, _) => ShowWindow();
         TrayIcon.SetIcons(this, [_tray]);
+    }
+
+    /// <summary>Submenu da bandeja com os perfis (o último aplicado marcado); um clique aplica.</summary>
+    private void RebuildProfilesMenu()
+    {
+        if (_profilesMenu is null || _main is null)
+        {
+            return;
+        }
+
+        var menu = new NativeMenu();
+        foreach (var profile in _main.Profiles.Profiles)
+        {
+            var name = profile.Name;
+            var item = new NativeMenuItem(name) { ToggleType = MenuItemToggleType.Radio, IsChecked = profile.IsActive };
+            item.Click += async (_, _) => await _main.Profiles.ApplyByNameAsync(name).ConfigureAwait(true);
+            menu.Add(item);
+        }
+
+        _profilesMenu.Menu = menu;
     }
 
     private void ShowWindow()

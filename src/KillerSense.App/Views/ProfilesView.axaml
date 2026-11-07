@@ -18,29 +18,27 @@
   </UserControl.Styles>
 
   <DockPanel Margin="24,22">
-    <StackPanel DockPanel.Dock="Top" Spacing="16" Margin="0,0,0,16">
-      <Border Classes="preview">
-        <TextBlock Text="Prévia: esta tela ainda não fala com o serviço. Os perfis ficam só nesta janela; nada é salvo nem aplicado ao notebook." />
-      </Border>
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Classes="label" VerticalAlignment="Center" TextWrapping="Wrap"
-                   Text="Um perfil junta o modo, as fans, a iluminação, a GPU e o limite da bateria. Aplicar um perfil troca tudo de uma vez." />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-          <Button Classes="nav" Content="Importar" Command="{Binding ImportCommand}" HorizontalContentAlignment="Center" />
-          <Button Classes="nav" Content="Exportar" Command="{Binding ExportCommand}" HorizontalContentAlignment="Center" />
-        </StackPanel>
-      </Grid>
-    </StackPanel>
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+      <TextBlock Classes="label" VerticalAlignment="Center" TextWrapping="Wrap"
+                 Text="Um perfil junta o modo, as fans, o offset da GPU, o limite da bateria e a luz do teclado. Aplicar troca tudo de uma vez; o que estiver em “Não mudar” fica como está." />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Classes="nav" Content="Importar" Click="OnImport" HorizontalContentAlignment="Center" />
+        <Button Classes="nav" Content="Exportar" Click="OnExport" HorizontalContentAlignment="Center" />
+        <Button Classes="safe" Content="Salvar" Command="{Binding SaveCommand}" />
+      </StackPanel>
+    </Grid>
 
     <TextBlock DockPanel.Dock="Bottom" Text="{Binding Status}" TextWrapping="Wrap" FontSize="12" Margin="0,12,0,0"
-               Foreground="{StaticResource KsWarnBrush}" IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
+               Foreground="{Binding StatusIsError, Converter={x:Static vm:Converters.ErrorBrush}}"
+               IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
     <Grid ColumnDefinitions="300,16,*">
       <!-- Lista -->
       <Border Classes="card" Padding="8">
         <DockPanel>
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="6,8,6,4">
-            <Button Classes="nav" Content="Novo" Command="{Binding NewCommand}" HorizontalContentAlignment="Center" />
+            <Button Classes="nav" Content="Novo" Command="{Binding NewCommand}" HorizontalContentAlignment="Center"
+                    ToolTip.Tip="Cria um perfil com a configuração atual." />
             <Button Classes="nav" Content="Duplicar" Command="{Binding DuplicateCommand}" HorizontalContentAlignment="Center" />
             <Button Classes="nav" Content="Excluir" Command="{Binding DeleteCommand}" HorizontalContentAlignment="Center" />
           </StackPanel>
@@ -51,7 +49,7 @@
                   <Grid ColumnDefinitions="*,Auto">
                     <TextBlock Text="{Binding Name}" FontSize="14" TextTrimming="CharacterEllipsis" />
                     <Border Grid.Column="1" Classes="chip" IsVisible="{Binding IsActive}" BorderBrush="{StaticResource KsAccentBrush}" Padding="8,1">
-                      <TextBlock Text="ativo" FontSize="11" Foreground="{StaticResource KsAccentBrush}" />
+                      <TextBlock Text="último aplicado" FontSize="11" Foreground="{StaticResource KsAccentBrush}" />
                     </Border>
                   </Grid>
                   <TextBlock Classes="label" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
@@ -66,38 +64,45 @@
       <Border Grid.Column="2" Classes="card">
         <ScrollViewer>
           <StackPanel Spacing="16" IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-              <TextBox Text="{Binding Selected.Name}" IsEnabled="{Binding CanEdit}" FontSize="16" />
-              <Button Grid.Column="1" Classes="safe" Content="Aplicar" Command="{Binding ApplyCommand}" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+              <TextBox Text="{Binding Selected.Name}" IsEnabled="{Binding CanEdit}" FontSize="16" MaxLength="40" AutomationProperties.Name="Nome do perfil" />
+              <Button Grid.Column="1" Classes="nav" Content="Pegar a configuração atual" Command="{Binding CaptureCommand}"
+                      ToolTip.Tip="Guarda neste perfil o modo, a curva das fans, o offset da GPU, o limite da bateria e a luz que estão valendo agora." />
+              <Button Grid.Column="2" Classes="safe" Content="Aplicar" Command="{Binding ApplyCommand}" />
             </Grid>
             <TextBlock Classes="label" TextWrapping="Wrap" IsVisible="{Binding !CanEdit}"
-                       Text="Perfil da Acer, somente leitura: modo Equilibrado, fans no Auto do EC, GPU no padrão da Acer. Use Duplicar para criar um perfil a partir dele." />
+                       Text="Perfil da Acer, somente leitura: Equilibrado, fans no Auto do EC e o offset da GPU da Acer (só o Turbo acelera). Bateria e luz ficam como estão. Use Duplicar para criar um perfil a partir dele." />
 
             <StackPanel Spacing="14" IsEnabled="{Binding CanEdit}">
               <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
                 <TextBlock Classes="label" Text="Modo" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding ModeOptions}" SelectedIndex="{Binding Selected.ModeIndex}" HorizontalAlignment="Stretch" />
+                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:ProfilesViewModel.ModeOptions}" SelectedIndex="{Binding Selected.ModeIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="Modo do perfil" />
               </Grid>
-              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+              <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                 <TextBlock Classes="label" Text="Fans" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding FanOptions}" SelectedIndex="{Binding Selected.FanIndex}" HorizontalAlignment="Stretch" />
+                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:ProfilesViewModel.FanOptions}" SelectedIndex="{Binding Selected.FanIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="Fans do perfil" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="label" Text="{Binding Selected.FansText}" TextWrapping="Wrap" />
               </Grid>
-              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
-                <TextBlock Classes="label" Text="Iluminação" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding LightingOptions}" SelectedIndex="{Binding Selected.LightingIndex}" HorizontalAlignment="Stretch" />
-              </Grid>
-              <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
+              <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
                 <TextBlock Classes="label" Text="GPU" VerticalAlignment="Center" />
-                <ComboBox Grid.Column="1" ItemsSource="{Binding GpuOptions}" SelectedIndex="{Binding Selected.GpuIndex}" HorizontalAlignment="Stretch" />
+                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:ProfilesViewModel.GpuOptions}" SelectedIndex="{Binding Selected.GpuIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="GPU do perfil" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="label" Text="{Binding Selected.GpuText}" TextWrapping="Wrap" />
               </Grid>
               <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
                 <TextBlock Classes="label" Text="Bateria" VerticalAlignment="Center" />
-                <CheckBox Grid.Column="1" Content="Limitar a carga em 80%" IsChecked="{Binding Selected.BatteryLimit}" />
+                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:ProfilesViewModel.BatteryOptions}" SelectedIndex="{Binding Selected.BatteryIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="Bateria do perfil" />
+              </Grid>
+              <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                <TextBlock Classes="label" Text="Iluminação" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:ProfilesViewModel.LightingOptions}" SelectedIndex="{Binding Selected.LightingIndex}" HorizontalAlignment="Stretch" AutomationProperties.Name="Luz do perfil" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Classes="label" Text="{Binding Selected.LightingText}" TextWrapping="Wrap" />
               </Grid>
             </StackPanel>
 
+            <TextBlock Text="{Binding Selected.Problem}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource KsHotBrush}"
+                       IsVisible="{Binding Selected.Problem, Converter={x:Static ObjectConverters.IsNotNull}}" />
             <TextBlock Classes="label" TextWrapping="Wrap"
-                       Text="Desempenho e Turbo só funcionam na tomada; Eco só na bateria. Se o modo do perfil não estiver disponível, o killer-sense usa Equilibrado." />
+                       Text="Desempenho e Turbo só funcionam na tomada; Eco só na bateria. Se o modo do perfil não estiver disponível, o killer-sense usa Equilibrado. Os perfis também aparecem no menu do ícone da bandeja." />
           </StackPanel>
         </ScrollViewer>
       </Border>
