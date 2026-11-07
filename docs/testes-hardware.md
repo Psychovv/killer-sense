@@ -196,7 +196,7 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 
 ### T16 — luz do teclado pela página Iluminação (2026-11-07, versão instalada, com o usuário olhando o teclado)
 
-**Resultado: tudo certo, menos a volta do standby, que ainda falta conferir com a correção instalada.** Cada gravação foi aceita e a leitura de volta bateu com o pedido; o usuário confirmou no teclado:
+**Resultado: tudo certo, inclusive a volta do standby depois da correção.** Cada gravação foi aceita e a leitura de volta bateu com o pedido; o usuário confirmou no teclado:
 
 | Hora | Pedido | No teclado |
 |---|---|---|
@@ -208,7 +208,7 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 | 10:58:58 | Onda, velocidade 9, para a esquerda (`KBED = 2`) | mais rápida que a Onda da Acer (5) e para a esquerda ✔ |
 
 - Os números dos efeitos foram CONFIRMADOS também no perfil do próprio serviço de luz da Acer (`LightingProfile.ini`: STATIC 0 … TWINKLING 7), igual à nossa tabela. Por isso não testamos efeito por efeito.
-- **Standby:** às 10:13 o notebook entrou no standby moderno; ao acordar (10:50:09), o `AcerLightingService` regravou a Onda dele (10:50:14) e o killer-sense não regravou a sua: o standby moderno não manda o aviso de suspensão ao serviço. Corrigido no mesmo dia (`LightingRecheck`): o serviço trata uma parada de mais de 5 s no laço como volta do standby e confere a luz aos 10 s e aos 40 s (também depois de retomar, do login, do desbloqueio e do início do serviço), regravando só se o teclado mostrar outra luz. Instalado às 11:03; o reinício do serviço regravou a luz salva. **Pendente:** ver no log, depois do próximo standby, as linhas "O serviço ficou parado …" e "Luz do teclado regravada (volta do standby)".
+- **Standby:** às 10:13 o notebook entrou no standby moderno; ao acordar (10:50:09), o `AcerLightingService` regravou a Onda dele (10:50:14) e o killer-sense não regravou a sua: o standby moderno não manda o aviso de suspensão ao serviço. Corrigido no mesmo dia (`LightingRecheck`): o serviço trata uma parada de mais de 5 s no laço como volta do standby e confere a luz aos 10 s e aos 40 s (também depois de retomar, do login, do desbloqueio e do início do serviço), regravando só se o teclado mostrar outra luz. Instalado às 11:03; o reinício do serviço regravou a luz salva. **CONFIRMADO no standby seguinte:** o notebook dormiu das 13:44:28 às 14:08:04 (eventos 506/507) e às 14:08:14 o log trouxe "Luz do teclado regravada (volta do standby): outro programa tinha trocado a luz". Durante o standby o Windows acordou uns 30 s a cada minuto para manutenção (o log ganhou uma linha "O serviço ficou parado 30 s" por minuto) e, logo depois de acordar, acertou o relógio, o que gerou uma segunda linha. A partir da versão seguinte o serviço registra só paradas de 2 min ou mais, uma vez; a detecção continua a mesma.
 - Reiniciar o serviço (duas instalações): a luz salva foi regravada no início ✔.
 
 Plano original do teste, para referência:

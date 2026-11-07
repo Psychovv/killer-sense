@@ -35,6 +35,8 @@ public sealed partial class FanControlWorker : BackgroundService
     private bool _suspended;
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
     private bool? _lastLoggedChargeLimit;
+    private const double WakeLogMinimumSeconds = 120;
+    private long _lastWakeLogAt;
 
     /// <param name="store">Onde o perfil é salvo; null = não persistir (ex.: teste com --cpu-entry).</param>
     /// <param name="control">Onde fica a escolha "Encerrar"; null = não persistir.</param>
@@ -359,9 +361,12 @@ public sealed partial class FanControlWorker : BackgroundService
                     chargeLimit = batteryAllowed ? _chargeLimit.IsOn : null;
                 }
 
-                if (woke)
+                // No standby moderno o Windows acorda uns 30 s a cada minuto para manutenção, e logo depois de
+                // acordar ainda acerta o relógio (vira uma segunda "parada"). Registra só as longas, uma vez.
+                if (woke && gap >= WakeLogMinimumSeconds && Stopwatch.GetElapsedTime(_lastWakeLogAt) > TimeSpan.FromSeconds(10))
                 {
                     LogWakeGap(_log, (long)gap);
+                    _lastWakeLogAt = Stopwatch.GetTimestamp();
                 }
 
                 if (recheckLighting)
