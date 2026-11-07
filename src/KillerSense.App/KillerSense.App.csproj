@@ -11,7 +11,15 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- Sem a thread de GC em segundo plano: menos memória parada no modo bandeja. -->
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- Publicação: remove do .NET e do Avalonia o que o app não usa (bindings compilados, JSON gerado). -->
+    <PublishTrimmed>true</PublishTrimmed>
   </PropertyGroup>
+  <!-- O desenho é sempre pela CPU (Program.cs): o ANGLE (OpenGL sobre DirectX) nunca é carregado. -->
+  <Target Name="KsRemoveAngleFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'av_libglesv2.dll'" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

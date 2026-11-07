@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Publicacao sem simbolos de depuracao (.pdb). Os que vinham nos pacotes do SkiaSharp e do HarfBuzz
+    sozinhos somavam ~100 MB na pasta do app. O build normal (bin/) continua com os .pdb.
+    Tambem fica de fora o packages.lock.json, que o SDK Worker publicava como conteudo.
+  -->
+  <Target Name="KsRemoveSymbolsFromPublish" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'packages.lock.json'" />
+    </ItemGroup>
+  </Target>
+</Project>
