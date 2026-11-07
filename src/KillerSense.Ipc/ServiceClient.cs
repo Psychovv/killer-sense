@@ -33,7 +33,7 @@ public sealed class ServiceClient : IAsyncDisposable
     public Task<IpcMessage> SendCommandAsync(IpcRequestType type, TimeSpan timeout) =>
         RequestAsync(new IpcRequest(type), timeout);
 
-    /// <summary>Envia um pedido e espera a resposta (ack ou profile). Um pedido por vez.</summary>
+    /// <summary>Envia um pedido e espera a resposta (ack, profile, gpuOffsets, lighting…). Um pedido por vez.</summary>
     public async Task<IpcMessage> RequestAsync(IpcRequest request, TimeSpan timeout)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -80,7 +80,7 @@ public sealed class ServiceClient : IAsyncDisposable
                     {
                         StateReceived?.Invoke(state);
                     }
-                    else if (msg?.Kind is IpcMessage.KindAck or IpcMessage.KindProfile or IpcMessage.KindGpuOffsets)
+                    else if (msg is not null && msg.Kind != IpcMessage.KindState) // ack ou resposta a um pedido
                     {
                         TaskCompletionSource<IpcMessage>? tcs;
                         lock (_ackGate)
