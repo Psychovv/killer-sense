@@ -173,7 +173,9 @@ Frequência: 1 Hz para a interface; histórico em memória (ex.: 10 min) para gr
 ## 10. Configuração
 - Arquivo JSON em `%ProgramData%\KillerSense\config.json`, gravado só pelo serviço (ACL), com versão de esquema e backup do anterior.
 - Validação ao carregar: curvas monotônicas, faixas, pisos de segurança. Arquivo inválido → serviço sobe em Auto e avisa.
-- Perfil = modo térmico + modo/curva de cada fan + (fases seguintes) bateria, teclado, offsets da GPU.
+- Perfil = modo térmico + fans (Auto do EC ou uma curva guardada) + offsets da GPU + limite da bateria + luz do teclado; cada parte pode ficar em "Não mudar".
+- Os perfis ficam no lado da interface, em `%APPDATA%\KillerSense\profiles.json` (com `--simulated`: `profiles.simulated.json`), gravados de forma atômica com `.bak`. Aplicar um perfil usa os comandos que o serviço já tem (modo, curva/Auto, offsets, bateria, luz), uma parte por vez: uma parte recusada não impede as outras. Modo indisponível na fonte de energia atual → Equilibrado. A luz mantém o liga/desliga do controle ("Controlar a luz").
+- A luz do teclado fica em `%ProgramData%\KillerSense\lighting.json`, gravada pelo serviço; o controle começa **desligado** e, desligado, o serviço não faz nenhuma chamada de luz ao firmware.
 - Exportar/importar perfis; perfil "Padrão Acer" somente leitura, montado a partir do que foi mapeado (por exemplo: Turbo = +100/+200 na GPU).
 
 ## 11. Logs
@@ -197,13 +199,14 @@ Frequência: 1 Hz para a interface; histórico em memória (ex.: 10 min) para gr
 | Fans | modo por fan (Auto/Max/Curva), editor de curva, opção "fans ligadas", histerese/rampa (avançado) | 3 |
 | Modos e perfis | Silencioso/Equilibrado/Desempenho/Turbo (+ Eco na bateria), perfis do usuário, perfil "Padrão Acer" (somente leitura), exportar/importar | 4 |
 | Bateria | limite de carga (~80%), estado | 4 |
-| Iluminação | cor por zona (4 zonas), efeitos, brilho, liga/desliga por zona, desligar após 30 s | 4 |
-| Teclado e sistema | trava da tecla Windows, sticky key, comportamento da tecla de modos | 4 |
+| Iluminação | cor por zona (4 zonas), efeitos (os 8 da Acer), brilho, velocidade, direção, liga/desliga por zona; "desligar após 30 s" ainda não | 4 |
+| ~~Teclado e sistema~~ | retirada (2026-11-07): tecla Windows, sticky key, tecla de modos, USB desligado e overdrive ficam com o PredatorSense | — |
 | GPU | offsets de clock por perfil (núcleo/memória), com valores padrão da Acer | 4 (último) |
 | Configurações | início com o Windows, unidades, tema, logs, sobre | 3 |
 
 ### 12.4 Bandeja
 Ícone com indicação do estado (Auto/Curva/Emergência), menu com: modo térmico, perfil, "Voltar ao Auto", abrir janela, sair (sair da bandeja **não** para o serviço).
+Feito: submenu "Perfis" (o último aplicado marcado; um clique aplica), "Voltar ao Auto"/"Retomar", abrir janela e encerrar.
 
 ### 12.5 Protótipo antes do código (entrega da Fase 2)
 Protótipo v1 (2026-11-05): `docs/prototipo/index.html` (HTML estático, dados simulados). Para ver: `scripts/dev/serve-static.ps1 -Root docs/prototipo` e abrir `http://localhost:5173`. Estilos: **A · Pulso** (escuro, ciano, brilho) e **B · Grafite** (escuro neutro, violeta, sem brilho). É só referência visual; a interface real será feita em Avalonia.
@@ -253,7 +256,7 @@ Se uma meta não for atingida, é tratado como defeito.
 | Fase 3.1 | A15 no hardware (escritas de fan, uma por vez) e A17 (curva % → RPM) | 3.0 + aprovação de cada escrita |
 | Fase 3.2 | serviço + watchdog + laço de fans + failsafe; testes do §14 | 3.1 |
 | Fase 3.3 | bandeja + janela (Painel, Fans, Configurações) no estilo aprovado | 2b + 3.2 |
-| Fase 4 | modos (A16, A18) → bateria (A8) → iluminação (A9) → teclado/sistema → GPU | 3 |
+| Fase 4 | modos (A16, A18) → bateria (A8) → iluminação (A9) → GPU → perfis (teclado/sistema retirado) | 3 |
 | Depois | monitoramento extra; driver de baixo nível (potência da CPU) | decisão futura |
 
 ## 16. Ambiente e dependências (Fase 3.0)

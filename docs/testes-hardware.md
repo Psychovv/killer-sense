@@ -212,6 +212,22 @@ O que ainda é SUPOSIÇÃO até esse teste:
 - `KBST` acender e apagar zonas no estático;
 - o EC guardar a luz depois de reiniciar ou suspender. Se não guardar, o serviço já regrava ao iniciar; falta ver a volta da suspensão.
 
+## Fase 4.5 — perfis
+
+### T17 — perfis pela página Perfis e pela bandeja (PENDENTE: testar junto com o usuário)
+
+Feito em 2026-11-07 e testado só no simulado: testes de unidade e a página contra o serviço simulado, no build de depuração e no publicado (com trimming). Novo (pega a configuração atual), trocar o modo, Salvar, Aplicar e voltar ao "Padrão Acer": tudo certo, e o `profiles.simulated.json` ficou correto. O submenu "Perfis" da bandeja compila, mas não foi clicado num teste automático.
+
+Os perfis não têm chamada nova ao firmware: aplicar um perfil só manda os comandos que as outras páginas já usam.
+
+Roteiro (versão instalada):
+1. Perfis → Novo. Conferir se o perfil pegou o modo, a curva, o offset da GPU, a bateria e a luz que estão valendo.
+2. Criar um "Silencioso + Auto" e um "Turbo + curva" (na tomada). Aplicar cada um e conferir no Painel, em Fans, em GPU e em Bateria.
+3. Aplicar o "Turbo + curva" na bateria: deve ir para Equilibrado e avisar.
+4. Trocar de perfil pelo menu da bandeja; a marca deve ir para o último aplicado.
+5. Exportar, excluir um perfil, importar de volta.
+6. Aplicar "Padrão Acer": Equilibrado, fans no Auto do EC, offset da GPU da Acer.
+
 ## Peso e eficiência (2026-11-07)
 
 Comparação com o PredatorSense, medida com os dois rodando (o PredatorSense aberto em segundo plano desde o login):
