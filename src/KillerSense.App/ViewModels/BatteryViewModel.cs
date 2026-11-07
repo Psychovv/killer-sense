@@ -36,10 +36,19 @@ public sealed partial class BatteryViewModel : ObservableObject
             ReadBattery();
             ApplyLimitFromService(); // encerra um pedido pendente que o serviço não confirmou
         };
-        _timer.Start();
-        ReadBattery();
         ApplyLimitFromService();
     }
+
+    /// <summary>A tela apareceu: lê a bateria agora e a cada 5 s.</summary>
+    public void Start()
+    {
+        ReadBattery();
+        ApplyLimitFromService();
+        _timer.Start();
+    }
+
+    /// <summary>A tela saiu (outra página ou janela fechada, só na bandeja): para de ler.</summary>
+    public void Stop() => _timer.Stop();
 
     [ObservableProperty] public partial double ChargePercent { get; set; }
     [ObservableProperty] public partial bool IsCharging { get; set; }
