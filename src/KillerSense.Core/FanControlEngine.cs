@@ -276,7 +276,7 @@ public sealed class FanControlEngine
                 _gpuCtl.Reset();
             }
 
-            return Publish(EngineState.Emergency, $"Temperatura de emergência: CPU {t:0} °C.");
+            return Publish(EngineState.Emergency, EmergencyMessage(t, gpuTemperature));
         }
 
         if (wasEmergency)
@@ -398,6 +398,30 @@ public sealed class FanControlEngine
         _pauseReason = state;
         _pauseMessage = full;
         return Publish(state, full);
+    }
+
+    /// <summary>Diz qual sensor disparou a emergência; abaixo do limite, quanto falta esfriar para sair.</summary>
+    public static string EmergencyMessage(double cpuTemperature, double? gpuTemperature)
+    {
+        var hot = new List<string>(2);
+        if (cpuTemperature >= SafetyPolicy.CpuEmergencyTemperature)
+        {
+            hot.Add($"CPU {cpuTemperature:0} °C (limite {SafetyPolicy.CpuEmergencyTemperature:0} °C)");
+        }
+
+        if (gpuTemperature is { } g && g >= SafetyPolicy.GpuEmergencyTemperature)
+        {
+            hot.Add($"GPU {g:0} °C (limite {SafetyPolicy.GpuEmergencyTemperature:0} °C)");
+        }
+
+        if (hot.Count > 0)
+        {
+            return $"Temperatura de emergência: {string.Join(" e ", hot)}.";
+        }
+
+        var now = gpuTemperature is { } gNow ? $"CPU {cpuTemperature:0} °C, GPU {gNow:0} °C" : $"CPU {cpuTemperature:0} °C";
+        return $"Emergência: fans no máximo até a CPU cair a {SafetyPolicy.CpuEmergencyTemperature - SafetyPolicy.EmergencyReleaseMargin:0} °C "
+            + $"e a GPU a {SafetyPolicy.GpuEmergencyTemperature - SafetyPolicy.EmergencyReleaseMargin:0} °C (agora {now}).";
     }
 
     private EngineSnapshot Publish(EngineState state, string? message)

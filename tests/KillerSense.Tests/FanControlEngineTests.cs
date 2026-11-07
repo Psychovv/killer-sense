@@ -51,8 +51,19 @@ public class FanControlEngineTests
     public void Gpu_em_87_graus_dispara_emergencia()
     {
         var (fw, e) = Make(70);
-        Assert.Equal(EngineState.Emergency, e.Tick(1, gpuTemperature: 87).State);
+        var s = e.Tick(1, gpuTemperature: 87);
+        Assert.Equal(EngineState.Emergency, s.State);
         Assert.Equal(FanMode.Max, fw.GetFanMode(Fan.Gpu));
+        Assert.Equal("Temperatura de emergência: GPU 87 °C (limite 87 °C).", s.Message);
+    }
+
+    [Fact]
+    public void Mensagem_de_emergencia_diz_qual_sensor_e_quanto_falta_esfriar()
+    {
+        Assert.Equal("Temperatura de emergência: CPU 96 °C (limite 95 °C).", FanControlEngine.EmergencyMessage(96, 70));
+        Assert.Equal("Temperatura de emergência: CPU 95 °C (limite 95 °C) e GPU 90 °C (limite 87 °C).", FanControlEngine.EmergencyMessage(95, 90));
+        Assert.Equal("Emergência: fans no máximo até a CPU cair a 85 °C e a GPU a 77 °C (agora CPU 88 °C, GPU 80 °C).", FanControlEngine.EmergencyMessage(88, 80));
+        Assert.Equal("Emergência: fans no máximo até a CPU cair a 85 °C e a GPU a 77 °C (agora CPU 88 °C).", FanControlEngine.EmergencyMessage(88, null));
     }
 
     [Fact]
