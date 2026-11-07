@@ -3,6 +3,8 @@
     <RootNamespace>KillerSense.Watchdog</RootNamespace>
     <OutputType>Exe</OutputType>
     <AssemblyName>KillerSense.Watchdog</AssemblyName>
+    <!-- Sem a thread de GC em segundo plano: só lê 16 bytes a cada 500 ms. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KillerSense.Core\KillerSense.Core.csproj" />

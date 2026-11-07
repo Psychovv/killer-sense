@@ -3,6 +3,8 @@
     <RootNamespace>KillerSense.Service</RootNamespace>
     <OutputType>Exe</OutputType>
     <AssemblyName>KillerSense.Service</AssemblyName>
+    <!-- Sem a thread de GC em segundo plano: o laço é de 1 s e aloca pouco. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\KillerSense.Core\KillerSense.Core.csproj" />
