@@ -17,7 +17,7 @@ public sealed partial class DashboardViewModel : ObservableObject, IAsyncDisposa
     // Globalização invariante (mais leve): formato brasileiro feito à mão.
     private static readonly NumberFormatInfo Pt = new() { NumberGroupSeparator = ".", NumberDecimalSeparator = "," };
     // CPU usa o pincel da cor de destaque (muda junto com a escolha em Configurações).
-    private static readonly IBrush GpuBrush = new SolidColorBrush(Color.Parse("#5EC8FF"));
+    private static IBrush GpuBrush => AppTheme.Brush("KsAccent2Brush", Brushes.SkyBlue); // muda com o tema
     private readonly ServiceClient _client;
     private readonly Queue<double> _cpuHistory = new();
     private readonly Queue<double> _gpuHistory = new();

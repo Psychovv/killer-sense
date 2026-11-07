@@ -35,6 +35,7 @@ public sealed class App : Application, IDisposable
 
             // --simulated: conecta no serviço rodando com firmware simulado (desenvolvimento).
             var pipe = desktop.Args?.Contains("--simulated") == true ? IpcProtocol.SimulatedPipeName : IpcProtocol.PipeName;
+            AppTheme.Apply(AppSettings.Current.Theme);
             AccentColor.Apply(AppSettings.Current.Accent);
             _main = new MainViewModel(new ServiceClient(pipe));
             _main.Dashboard.PropertyChanged += UpdateTooltip;

@@ -25,6 +25,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         Accents =
         [
             new(this, "Violeta", AppSettings.DefaultAccent),
+            new(this, "Aço", AppTheme.DefaultAccentFor(AppTheme.Metal)),
+            new(this, "Vermelho", "#E5262D"),
             new(this, "Ciano", "#5EC8FF"),
             new(this, "Verde", "#4DD68B"),
             new(this, "Laranja", "#FF9F4D"),
@@ -51,6 +53,8 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] public partial bool UseFahrenheit { get; set; }
 
     // Aparência
+    [ObservableProperty] public partial bool UseGrafite { get; set; }
+    [ObservableProperty] public partial bool UseMetal { get; set; }
     [ObservableProperty] public partial AccentViewModel SelectedAccent { get; set; }
 
     [ObservableProperty] public partial bool IsDirty { get; set; }
@@ -68,6 +72,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             StartInTray = s.StartInTray;
             UseFahrenheit = s.Fahrenheit;
             UseCelsius = !s.Fahrenheit;
+            UseMetal = s.Theme == AppTheme.Metal;
+            UseGrafite = !UseMetal;
             SelectedAccent = Accents.FirstOrDefault(a => string.Equals(a.Hex, s.Accent, StringComparison.OrdinalIgnoreCase)) ?? Accents[0];
         }
         finally
@@ -97,6 +103,30 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnUseFahrenheitChanged(bool value) => Changed();
 
+    partial void OnUseGrafiteChanged(bool value) => ThemePicked(value, AppTheme.Grafite, AppTheme.Metal);
+
+    partial void OnUseMetalChanged(bool value) => ThemePicked(value, AppTheme.Metal, AppTheme.Grafite);
+
+    /// <summary>
+    /// Ao trocar de tema, se o destaque ainda era o padrão do outro tema, troca pelo padrão deste
+    /// (Violeta no Grafite, Aço no Metal). Um destaque escolhido à mão fica.
+    /// </summary>
+    private void ThemePicked(bool picked, string theme, string other)
+    {
+        if (!picked || _loading)
+        {
+            return;
+        }
+
+        if (string.Equals(SelectedAccent.Hex, AppTheme.DefaultAccentFor(other), StringComparison.OrdinalIgnoreCase)
+            && Accents.FirstOrDefault(a => string.Equals(a.Hex, AppTheme.DefaultAccentFor(theme), StringComparison.OrdinalIgnoreCase)) is { } match)
+        {
+            SelectedAccent = match;
+        }
+
+        Changed();
+    }
+
     private void Changed()
     {
         if (_loading)
@@ -115,6 +145,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         s.Fahrenheit = UseFahrenheit;
         s.Accent = SelectedAccent.Hex;
         s.StartInTray = StartInTray;
+        s.Theme = UseMetal ? AppTheme.Metal : AppTheme.Grafite;
+        AppTheme.Apply(s.Theme);
         AccentColor.Apply(s.Accent);
 
         var problems = new List<string>();

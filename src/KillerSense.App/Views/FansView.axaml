@@ -35,7 +35,7 @@
             </Grid>
             <c:CurveEditor Height="270" Points="{Binding CpuCurve}" EntryTemperature="{Binding CpuEntryTemperature}"
                            Floor="{Binding Floor}" CurrentTemperature="{Binding CpuNow}"
-                           RpmBase="2200" RpmPerPercent="48" CurveBrush="{StaticResource KsAccentBrush}" />
+                           RpmBase="2200" RpmPerPercent="48" CurveBrush="{StaticResource KsAccent2Brush}" />
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
               <TextBlock Classes="label" Text="Entrada" VerticalAlignment="Center" />
               <Slider Grid.Column="1" Minimum="30" Maximum="90" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding CpuEntryTemperature}" />

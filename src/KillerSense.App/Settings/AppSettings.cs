@@ -22,6 +22,9 @@ public sealed partial class AppSettings : ObservableObject
 
     [ObservableProperty] public partial string Accent { get; set; } = DefaultAccent;
 
+    /// <summary>Tema: <see cref="AppTheme.Grafite"/> (padrão) ou <see cref="AppTheme.Metal"/>.</summary>
+    [ObservableProperty] public partial string Theme { get; set; } = AppTheme.Grafite;
+
     /// <summary>Ao iniciar com o Windows, fica só na bandeja (sem abrir a janela).</summary>
     [ObservableProperty] public partial bool StartInTray { get; set; } = true;
 
@@ -36,6 +39,7 @@ public sealed partial class AppSettings : ObservableObject
             {
                 settings.Fahrenheit = data.Fahrenheit;
                 settings.StartInTray = data.StartInTray;
+                settings.Theme = AppTheme.Normalize(data.Theme);
                 if (data.Accent is { } accent && Color.TryParse(accent, out _))
                 {
                     settings.Accent = accent;
@@ -55,12 +59,12 @@ public sealed partial class AppSettings : ObservableObject
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var tmp = path + ".tmp";
-        File.WriteAllText(tmp, JsonSerializer.Serialize(new AppSettingsData(Fahrenheit, Accent, StartInTray), AppSettingsJson.Default.AppSettingsData));
+        File.WriteAllText(tmp, JsonSerializer.Serialize(new AppSettingsData(Fahrenheit, Accent, StartInTray, Theme), AppSettingsJson.Default.AppSettingsData));
         File.Move(tmp, path, overwrite: true);
     }
 }
 
-internal sealed record AppSettingsData(bool Fahrenheit, string? Accent, bool StartInTray = true);
+internal sealed record AppSettingsData(bool Fahrenheit, string? Accent, bool StartInTray = true, string? Theme = null);
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(AppSettingsData))]

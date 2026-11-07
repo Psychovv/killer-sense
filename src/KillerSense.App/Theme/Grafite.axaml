@@ -11,7 +11,7 @@
     <Setter Property="Background" Value="{StaticResource KsCardBrush}" />
     <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource KsRadius}" />
     <Setter Property="Padding" Value="18" />
   </Style>
 
@@ -33,6 +33,11 @@
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
 
+  <!-- Nome no menu lateral (o pincel é liso no Grafite e prata escovada no Metal) -->
+  <Style Selector="TextBlock.wordmark">
+    <Setter Property="Foreground" Value="{StaticResource KsMetalBrush}" />
+  </Style>
+
   <!-- Menu lateral -->
   <Style Selector="Button.nav">
     <Setter Property="Background" Value="Transparent" />
@@ -40,11 +45,30 @@
     <Setter Property="HorizontalAlignment" Value="Stretch" />
     <Setter Property="HorizontalContentAlignment" Value="Left" />
     <Setter Property="Padding" Value="12,9" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{DynamicResource KsSmallRadius}" />
   </Style>
   <Style Selector="Button.nav.on">
     <Setter Property="Background" Value="{StaticResource KsCard2Brush}" />
     <Setter Property="Foreground" Value="{StaticResource KsTextBrush}" />
+  </Style>
+
+  <!-- Só no tema Metal (classe "metal" na janela, posta pelo AppTheme) -->
+  <Style Selector="Window.metal TextBlock.h1">
+    <Setter Property="FontSize" Value="21" />
+    <Setter Property="FontFamily" Value="Bahnschrift, Segoe UI" />
+    <Setter Property="FontStyle" Value="Italic" />
+    <Setter Property="LetterSpacing" Value="0.5" />
+  </Style>
+  <Style Selector="Window.metal TextBlock.wordmark">
+    <Setter Property="FontFamily" Value="Bahnschrift, Segoe UI" />
+    <Setter Property="FontStyle" Value="Italic" />
+  </Style>
+  <Style Selector="Window.metal Button.nav">
+    <Setter Property="BorderThickness" Value="2,0,0,0" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <Style Selector="Window.metal Button.nav.on">
+    <Setter Property="BorderBrush" Value="{StaticResource KsMetalBrush}" />
   </Style>
 
   <!-- Botões de ação -->
@@ -53,7 +77,7 @@
     <Setter Property="BorderBrush" Value="{StaticResource KsAccentBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="{StaticResource KsAccentBrush}" />
-    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource KsRadius}" />
     <Setter Property="Padding" Value="14,7" />
   </Style>
 
@@ -61,7 +85,7 @@
   <Style Selector="Border.preview">
     <Setter Property="BorderBrush" Value="{StaticResource KsWarnBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="{StaticResource KsRadius}" />
+    <Setter Property="CornerRadius" Value="{DynamicResource KsRadius}" />
     <Setter Property="Padding" Value="14,10" />
   </Style>
   <Style Selector="Border.preview TextBlock">
@@ -95,7 +119,7 @@
   <Style Selector="Border.chip">
     <Setter Property="BorderBrush" Value="{StaticResource KsLineBrush}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="CornerRadius" Value="{DynamicResource KsChipRadius}" />
     <Setter Property="Padding" Value="10,5" />
   </Style>
 </Styles>

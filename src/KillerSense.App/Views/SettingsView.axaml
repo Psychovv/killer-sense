@@ -74,7 +74,8 @@
               <Grid ColumnDefinitions="140,*" ColumnSpacing="12">
                 <TextBlock Classes="label" Text="Tema" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="24">
-                  <RadioButton GroupName="theme" Content="Grafite (escuro)" IsChecked="True" />
+                  <RadioButton GroupName="theme" Content="Grafite (escuro)" IsChecked="{Binding UseGrafite}" />
+                  <RadioButton GroupName="theme" Content="Metal (escuro)" IsChecked="{Binding UseMetal}" />
                   <RadioButton GroupName="theme" Content="Claro (em breve)" IsEnabled="False" />
                 </StackPanel>
               </Grid>

@@ -110,15 +110,17 @@ public sealed class CurveEditor : Control
             return;
         }
 
-        var line = new Pen(new SolidColorBrush(Color.Parse("#34343D")), 1);
-        var muted = new SolidColorBrush(Color.Parse("#9A9AA6"));
+        // Cores do tema atual (Grafite ou Metal).
+        var line = new Pen(AppTheme.Brush("KsLineBrush", Brushes.DimGray), 1);
+        var muted = AppTheme.Brush("KsMutedBrush", Brushes.Gray);
         var curve = CurveBrush ?? Brushes.MediumPurple;
+        var hot = AppTheme.Brush("KsHotBrush", Brushes.IndianRed) is ISolidColorBrush hb ? hb.Color : Colors.IndianRed;
 
         // Faixa do Auto do EC (abaixo da entrada) e faixa abaixo do piso.
-        ctx.FillRectangle(new SolidColorBrush(Color.Parse("#2C2C34")), new Rect(new Point(X(MinT), Y(100)), new Point(X(Math.Clamp(EntryTemperature, MinT, MaxT)), Y(0))));
+        ctx.FillRectangle(AppTheme.Brush("KsCard2Brush", Brushes.DimGray), new Rect(new Point(X(MinT), Y(100)), new Point(X(Math.Clamp(EntryTemperature, MinT, MaxT)), Y(0))));
         if (Floor > 0)
         {
-            ctx.FillRectangle(new SolidColorBrush(Color.Parse("#FF6B7A"), 0.12), new Rect(new Point(X(MinT), Y(Floor)), new Point(X(MaxT), Y(0))));
+            ctx.FillRectangle(new SolidColorBrush(hot, 0.12), new Rect(new Point(X(MinT), Y(Floor)), new Point(X(MaxT), Y(0))));
         }
 
         for (var t = 30; t <= 100; t += 10)
@@ -154,7 +156,7 @@ public sealed class CurveEditor : Control
             for (var i = 0; i < pts.Count; i++)
             {
                 var c = new Point(X(pts[i].Temperature), Y(pts[i].Percent));
-                ctx.DrawEllipse(new SolidColorBrush(Color.Parse("#1C1C20")), new Pen(curve, 3), c, i == _drag ? 9 : 7, i == _drag ? 9 : 7);
+                ctx.DrawEllipse(AppTheme.Brush("KsBgBrush", Brushes.Black), new Pen(curve, 3), c, i == _drag ? 9 : 7, i == _drag ? 9 : 7);
             }
 
             if (_drag >= 0 && _drag < pts.Count)

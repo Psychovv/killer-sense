@@ -3,7 +3,7 @@
              x:Class="KillerSense.App.App"
              RequestedThemeVariant="Dark">
   <Application.Resources>
-    <!-- Tema Grafite (docs/prototipo/index.html, body.b) -->
+    <!-- Tema Grafite (docs/prototipo/index.html, body.b). O Metal e a troca ficam em Settings/AppTheme.cs. -->
     <Color x:Key="KsBg">#1C1C20</Color>
     <Color x:Key="KsSide">#202026</Color>
     <Color x:Key="KsCard">#26262D</Color>
@@ -27,6 +27,15 @@
     <SolidColorBrush x:Key="KsWarnBrush" Color="{StaticResource KsWarn}" />
     <SolidColorBrush x:Key="KsHotBrush" Color="{StaticResource KsHot}" />
     <CornerRadius x:Key="KsRadius">8</CornerRadius>
+    <CornerRadius x:Key="KsSmallRadius">6</CornerRadius>
+    <CornerRadius x:Key="KsChipRadius">999</CornerRadius>
+    <!-- Nome no menu lateral: prata escovada no Metal; o AppTheme deixa liso no Grafite -->
+    <LinearGradientBrush x:Key="KsMetalBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+      <GradientStop Offset="0" Color="#F4F4F6" />
+      <GradientStop Offset="0.48" Color="#8D8F98" />
+      <GradientStop Offset="0.56" Color="#D9DADF" />
+      <GradientStop Offset="1" Color="#62646D" />
+    </LinearGradientBrush>
   </Application.Resources>
   <Application.Styles>
     <FluentTheme />
