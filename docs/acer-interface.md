@@ -510,7 +510,8 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 | 7 | Cintilante (Twinkling) | 1–9 | — | uma |
 
 - Padrões da DLL: velocidade 5, brilho 50 (0–100). Os valores 8 (Ripple), 9 (Snake) e 10 (Disco) também existem na DLL, mas o PredatorSense não os oferece para o teclado de 4 zonas (lista `KB_Zone_Default`).
-- Direção: enum `EFFECT_DIRECTION` do PredatorSense, 1 = direita, 2 = esquerda. O snapshot 01 tinha `KBLE = 3` (onda), `KBLS = 5`, `KBED = 1`. Que a DLL passe esse número direto para `KBED` é SUPOSIÇÃO (teste T16).
+- Direção: enum `EFFECT_DIRECTION` do PredatorSense, 1 = direita, 2 = esquerda. O snapshot 01 tinha `KBLE = 3` (onda), `KBLS = 5`, `KBED = 1`. **CONFIRMADO no teclado (T16, 2026-11-07):** `KBED = 2` faz a Onda andar para a esquerda, e a velocidade 9 é a rápida.
+- **Serviço de luz da Acer (`AcerLightingService`, serviço do Windows que vem com o PredatorSense, baseado no OpenRGB):** guarda o perfil em `C:\ProgramData\OEM\AcerLightingService\LightingProfile\LightingProfile.ini` (`ActiveMode` = índice na lista `Direct, STATIC, BREATHING, NEON, WAVE, SHIFTING, ZOOM, METEOR, TWINKLING`; cada seção tem o `value` do efeito, que bate com a tabela acima). **CONFIRMADO (2026-11-07):** uns 5 s depois de o notebook acordar do standby moderno, ele regrava esse perfil no teclado (o arquivo foi regravado às 10:50:14, a volta do standby foi às 10:50:09, e o teclado voltou para a Onda dele). O killer-sense confere a luz depois de acordar e regrava a dele (ver `LightingRecheck`).
 - No ACPI, `SetGamingKBBacklight` com `[9] = 1` grava `KLSY = 0`; com `[9]` diferente de 1 e 2, grava `KLSY = 1` e mexe no teclado do mesmo jeito. O killer-sense sempre manda 1, como a DLL.
 
 **Funções extras do PredatorSense:**

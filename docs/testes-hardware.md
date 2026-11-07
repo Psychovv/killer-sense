@@ -186,7 +186,24 @@ Regra aprovada: pausa, espera 30 s e retoma do Auto; mais de 3 mudanças em 10 m
 
 ## Fase 4.4 — luz do teclado
 
-### T16 — luz do teclado pela página Iluminação (PENDENTE: testar junto com o usuário)
+### T16 — luz do teclado pela página Iluminação (2026-11-07, versão instalada, com o usuário olhando o teclado)
+
+**Resultado: tudo certo, menos a volta do standby, que ainda falta conferir com a correção instalada.** Cada gravação foi aceita e a leitura de volta bateu com o pedido; o usuário confirmou no teclado:
+
+| Hora | Pedido | No teclado |
+|---|---|---|
+| 09:57:25 | Estático, brilho 100, ciano nas 4 zonas (primeira gravação de luz) | ciano nas 4 zonas ✔ |
+| 09:58:11 | Estático, zonas vermelho / verde / azul / amarelo | da esquerda para a direita, nessa ordem ✔ (zona 1 = esquerda) |
+| 10:01:21 | Zona 2 apagada (`KBST = 0x0D`), brilho 30 | zona 2 apagada, as outras mais fracas ✔ |
+| 10:02:01 | 4 zonas acesas, brilho 0 | teclado todo apagado ✔ |
+| 10:03:17 | Respiração vermelha, velocidade 1 | aceito e lido de volta; o usuário não chegou a descrever (a tela apagou) |
+| 10:58:58 | Onda, velocidade 9, para a esquerda (`KBED = 2`) | mais rápida que a Onda da Acer (5) e para a esquerda ✔ |
+
+- Os números dos efeitos foram CONFIRMADOS também no perfil do próprio serviço de luz da Acer (`LightingProfile.ini`: STATIC 0 … TWINKLING 7), igual à nossa tabela. Por isso não testamos efeito por efeito.
+- **Standby:** às 10:13 o notebook entrou no standby moderno; ao acordar (10:50:09), o `AcerLightingService` regravou a Onda dele (10:50:14) e o killer-sense não regravou a sua: o standby moderno não manda o aviso de suspensão ao serviço. Corrigido no mesmo dia (`LightingRecheck`): o serviço trata uma parada de mais de 5 s no laço como volta do standby e confere a luz aos 10 s e aos 40 s (também depois de retomar, do login, do desbloqueio e do início do serviço), regravando só se o teclado mostrar outra luz. Instalado às 11:03; o reinício do serviço regravou a luz salva. **Pendente:** ver no log, depois do próximo standby, as linhas "O serviço ficou parado …" e "Luz do teclado regravada (volta do standby)".
+- Reiniciar o serviço (duas instalações): a luz salva foi regravada no início ✔.
+
+Plano original do teste, para referência:
 
 Feito em 2026-11-07 e testado só no simulado (testes de unidade + a página contra o serviço simulado). No notebook, o controle da luz vem **desligado**: sem ligar a opção, o serviço não faz nenhuma chamada de luz ao firmware.
 
@@ -207,10 +224,10 @@ Roteiro (com o usuário olhando o teclado):
 6. Reiniciar o serviço: ele deve regravar a luz salva ao iniciar.
 7. Para reverter: desligar "Controlar a luz" e escolher a luz no PredatorSense.
 
-O que ainda é SUPOSIÇÃO até esse teste:
-- direção 1 = direita e 2 = esquerda (enum do PredatorSense);
-- `KBST` acender e apagar zonas no estático;
-- o EC guardar a luz depois de reiniciar ou suspender. Se não guardar, o serviço já regrava ao iniciar; falta ver a volta da suspensão.
+O que era SUPOSIÇÃO antes do teste:
+- direção 1 = direita e 2 = esquerda (enum do PredatorSense): CONFIRMADO;
+- `KBST` acender e apagar zonas no estático: CONFIRMADO;
+- o EC guardar a luz depois de reiniciar ou suspender: quem troca a luz ao acordar é o serviço de luz da Acer; o killer-sense agora regrava a dele (falta ver no log, ver acima). Depois de reiniciar o Windows: ainda não testado.
 
 ## Fase 4.5 — perfis
 
@@ -264,10 +281,18 @@ Mudanças feitas a partir disso:
 - As 9 páginas abriram com dados ao vivo do simulado.
 - A árvore de acessibilidade (UI Automation) ficou igual: 52 elementos e 10 botões.
 
+**Instalado em 2026-11-07 (09:54, com UAC):** o `update-services.ps1` migrou de `Service\` e `Watchdog\` para `Services\` sem erro (parou, trocou o caminho dos dois serviços, apagou as pastas antigas e iniciou). RAM medida às 11:13, serviço rodando havia 10 min, killer-sense ativo, luz ligada:
+
+| | antes (pastas separadas) | depois (`Services\` + GC sem thread) |
+|---|---|---|
+| Serviço (working set / privada) | 74 / 53 MB | 83,1 / 40,3 MB |
+| Watchdog | 36 / 10 MB | 40,2 / 9,4 MB |
+
+- A memória privada do serviço caiu 13 MB. O working set subiu um pouco, mas boa parte dele agora são as DLLs do .NET que os dois processos dividem.
+- Observação, não conferida: na primeira abertura do app novo, ele levou ~22 s até falar com o serviço (antes a janela abria em menos de 1 s). Pode ser o antivírus olhando os arquivos recém-copiados; ver se repete.
+
 **Pendente:**
-- instalar com `update-services.ps1`, que migra de `Service\` e `Watchdog\` para `Services\`;
-- repetir o T3/T4 (parada normal e kill do serviço) com a nova pasta;
-- medir a RAM do serviço real.
+- repetir o T3/T4 (parada normal e kill do serviço) com a nova pasta.
 
 ### Pendentes da Fase 3.2
 - Desligamento (verificar no log, no próximo desligamento normal, a linha "Auto do EC aplicado (desligamento do Windows)").

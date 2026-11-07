@@ -393,6 +393,9 @@ public sealed partial class ProfileViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Problem))]
     public partial string Name { get; set; } = "";
 
+    /// <summary>O item da lista usa este texto como nome para o leitor de tela.</summary>
+    public override string ToString() => Name;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Summary))]
     public partial int ModeIndex { get; set; }
