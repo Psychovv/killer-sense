@@ -15,7 +15,7 @@ public sealed class AutoRestorer : IDisposable
     public bool RestoreAuto()
     {
         _fw.SetFanModes(AutoBoth);
-        return _fw.GetFanMode(Fan.Cpu) == FanMode.Auto && _fw.GetFanMode(Fan.Gpu) == FanMode.Auto;
+        return _fw.GetFanModes() == (FanMode.Auto, FanMode.Auto);
     }
 
     public void Dispose() => _fw.Dispose();

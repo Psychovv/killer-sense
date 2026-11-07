@@ -27,6 +27,12 @@ public interface IAcerFirmware
     /// <summary>Modo atual de uma fan (<c>GetGamingFanBehavior</c>).</summary>
     FanMode GetFanMode(Fan fan);
 
+    /// <summary>
+    /// Modo das duas fans numa única chamada (<c>GetGamingFanBehavior(0x09)</c>). Preferir a
+    /// <see cref="GetFanMode"/>: cada leitura do modo passa por SMI, que pausa todos os núcleos por um instante.
+    /// </summary>
+    (FanMode Cpu, FanMode Gpu) GetFanModes();
+
     /// <summary>Define o modo de uma ou mais fans numa única chamada (<c>SetGamingFanBehavior</c>).</summary>
     void SetFanModes(IReadOnlyDictionary<Fan, FanMode> modes);
 

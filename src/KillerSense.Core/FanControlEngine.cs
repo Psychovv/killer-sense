@@ -122,7 +122,7 @@ public sealed class FanControlEngine
         _appliedPercent[Fan.Gpu] = null;
         _cpuCtl.Reset();
         _gpuCtl.Reset();
-        if (_fw.GetFanMode(Fan.Cpu) != FanMode.Auto || _fw.GetFanMode(Fan.Gpu) != FanMode.Auto)
+        if (_fw.GetFanModes() != (FanMode.Auto, FanMode.Auto))
         {
             throw new FirmwareException("O firmware não confirmou o Auto depois de SetGamingFanBehavior.");
         }
@@ -285,15 +285,20 @@ public sealed class FanControlEngine
             return Publish(EngineState.Auto, "Emergência encerrada; fans de volta ao Auto.");
         }
 
-        // 3) Mudança feita por fora (PredatorSense, tecla, etc.): não brigar.
-        foreach (var fan in new[] { Fan.Cpu, Fan.Gpu })
+        // 3) Mudança feita por fora (PredatorSense, tecla, etc.): não brigar. Só com fan em Custom, e uma
+        //    leitura só para as duas (cada leitura do modo é um SMI, que pausa todos os núcleos).
+        if (_applied[Fan.Cpu] == FanMode.Custom || _applied[Fan.Gpu] == FanMode.Custom)
         {
-            if (_applied[fan] == FanMode.Custom && _fw.GetFanMode(fan) != FanMode.Custom)
+            var (cpuNow, gpuNow) = _fw.GetFanModes();
+            Fan? changed = _applied[Fan.Cpu] == FanMode.Custom && cpuNow != FanMode.Custom ? Fan.Cpu
+                : _applied[Fan.Gpu] == FanMode.Custom && gpuNow != FanMode.Custom ? Fan.Gpu
+                : null;
+            if (changed is { } fan)
             {
                 _cpuCtl.Reset();
                 _gpuCtl.Reset();
-                _applied[Fan.Cpu] = _fw.GetFanMode(Fan.Cpu);
-                _applied[Fan.Gpu] = _fw.GetFanMode(Fan.Gpu);
+                _applied[Fan.Cpu] = cpuNow;
+                _applied[Fan.Gpu] = gpuNow;
                 while (_overrideTimes.Count > 0 && _clock - _overrideTimes.Peek() > SafetyPolicy.ExternalOverrideWindowSeconds)
                 {
                     _overrideTimes.Dequeue();

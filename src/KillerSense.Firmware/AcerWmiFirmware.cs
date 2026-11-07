@@ -57,6 +57,12 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
     public FanMode GetFanMode(Fan fan) =>
         AcerProtocol.DecodeFanMode(Invoke("GetGamingFanBehavior", AcerProtocol.BehaviorMask([fan])), fan);
 
+    public (FanMode Cpu, FanMode Gpu) GetFanModes()
+    {
+        var output = Invoke("GetGamingFanBehavior", AcerProtocol.BehaviorMask([Fan.Cpu, Fan.Gpu]));
+        return (AcerProtocol.DecodeFanMode(output, Fan.Cpu), AcerProtocol.DecodeFanMode(output, Fan.Gpu));
+    }
+
     public void SetFanModes(IReadOnlyDictionary<Fan, FanMode> modes)
     {
         var input = AcerProtocol.EncodeSetFanBehavior(modes);

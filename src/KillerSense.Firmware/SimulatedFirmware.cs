@@ -33,6 +33,8 @@ public sealed class SimulatedFirmware : IAcerFirmware
 
     public FanMode GetFanMode(Fan fan) => Record($"GetFanMode({fan})", () => _modes[fan]);
 
+    public (FanMode Cpu, FanMode Gpu) GetFanModes() => Record("GetFanModes", () => (_modes[Fan.Cpu], _modes[Fan.Gpu]));
+
     public void SetFanModes(IReadOnlyDictionary<Fan, FanMode> modes)
     {
         var encoded = AcerProtocol.EncodeSetFanBehavior(modes); // mesma validação do real

@@ -154,6 +154,39 @@ public class FanControlEngineTests
     }
 
     [Fact]
+    public void Com_as_duas_fans_em_curva_le_o_modo_uma_vez_por_ciclo()
+    {
+        var (fw, e) = Make(75);
+        e.Tick(1, gpuTemperature: 75); // as duas assumem
+        var before = fw.Calls.Count;
+        Assert.Equal(EngineState.Curve, e.Tick(1, gpuTemperature: 75).State);
+        var reads = fw.Calls.Skip(before).Where(c => c.StartsWith("GetFanMode", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(["GetFanModes"], reads); // um SMI por ciclo, não um por fan
+    }
+
+    [Fact]
+    public void Em_auto_nao_le_o_modo_das_fans()
+    {
+        var (fw, e) = Make(55);
+        e.Tick(1);
+        e.Tick(1);
+        Assert.DoesNotContain(fw.Calls, c => c.StartsWith("GetFanMode", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Mudanca_externa_so_na_fan_da_gpu_tambem_pausa()
+    {
+        var (fw, e) = Make(75);
+        e.Tick(1, gpuTemperature: 75);
+        fw.SetFanModes(new Dictionary<Fan, FanMode> { [Fan.Gpu] = FanMode.Auto });
+        var s = e.Tick(1, gpuTemperature: 75);
+        Assert.Equal(EngineState.ExternalOverride, s.State);
+        Assert.Contains("fan Gpu", s.Message, StringComparison.Ordinal);
+        Assert.Equal(FanMode.Custom, s.Cpu.Mode); // assume o que o firmware tem agora, sem regravar
+        Assert.Equal(FanMode.Auto, s.Gpu.Mode);
+    }
+
+    [Fact]
     public void Quatro_mudancas_em_10_min_deixam_pausado_ate_retomar_manualmente()
     {
         var (fw, e) = Make(75);
