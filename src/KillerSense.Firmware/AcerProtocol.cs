@@ -144,6 +144,160 @@ public static class AcerProtocol
     public static bool IsAllowedMiscSetting(ulong input) =>
         (input & 0xFF) == MiscOperatingMode && input >> 16 == 0 && Enum.IsDefined((OperatingMode)(byte)(input >> 8));
 
+    // ---- Luz do teclado (4 zonas) — docs/acer-interface.md, "Teclado" ----
+
+    /// <summary>Tamanho do <c>gmInput</c> (UInt8[16]) de <c>SetGamingLED</c> e <c>SetGamingKBBacklight</c>.</summary>
+    public const int LightInputLength = 16;
+
+    /// <summary>Subcomando de <c>Set/GetGamingLED</c> das zonas do teclado (<c>EC.KBST</c>).</summary>
+    public const byte LedKeyboardZones = 0x08;
+
+    /// <summary>Alvo de <c>Set/GetGamingKBBacklight</c>: 1 = teclado (2 = light bar, que este modelo não tem).</summary>
+    public const byte BacklightKeyboard = 0x01;
+
+    /// <summary>Valor de <c>KLES</c> que a DLL da Acer sempre manda.</summary>
+    public const byte BacklightKles = 0x03;
+
+    /// <summary>Máscara da zona no <c>Set/GetGamingRgbKb</c>: zona 1 = 1, 2 = 2, 3 = 4, 4 = 8.</summary>
+    public static byte ZoneBit(int zone)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(zone);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(zone, ZoneColors.Count);
+        return (byte)(1 << zone);
+    }
+
+    /// <summary><c>SetGamingLED</c>: <c>[0] = 8</c>, <c>[5]</c> = zonas acesas (vai para <c>EC.KBST</c>).</summary>
+    public static byte[] EncodeSetKeyboardZones(byte zoneMask)
+    {
+        if ((zoneMask & ~KeyboardLighting.AllZones) != 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(zoneMask), $"Máscara de zonas inválida: 0x{zoneMask:X2}.");
+        }
+
+        var input = new byte[LightInputLength];
+        input[0] = LedKeyboardZones;
+        input[5] = zoneMask;
+        return input;
+    }
+
+    /// <summary>
+    /// <c>SetGamingKBBacklight</c> do teclado: <c>[0]</c> efeito, <c>[1]</c> velocidade (0 no estático, como a
+    /// Acer), <c>[2]</c> brilho, <c>[3] = 0</c>, <c>[4]</c> direção, <c>[5..7]</c> RGB, <c>[8]</c> KLES = 3,
+    /// <c>[9]</c> alvo = 1. Nenhum byte vale 0xFF ("não mudar" no ACPI).
+    /// </summary>
+    public static byte[] EncodeSetKeyboardBacklight(KeyboardLighting lighting)
+    {
+        ArgumentNullException.ThrowIfNull(lighting);
+        if (lighting.Validate() is { } error)
+        {
+            throw new ArgumentException(error, nameof(lighting));
+        }
+
+        var effect = lighting.Effect;
+        var color = KeyboardLighting.UsesColor(effect) ? lighting.Color : RgbColor.Black;
+        var input = new byte[LightInputLength];
+        input[0] = (byte)effect;
+        input[1] = KeyboardLighting.UsesSpeed(effect) ? (byte)lighting.Speed : (byte)0;
+        input[2] = (byte)lighting.Brightness;
+        input[3] = 0;
+        input[4] = KeyboardLighting.UsesDirection(effect) ? (byte)lighting.Direction : (byte)LightDirection.Right;
+        input[5] = color.R;
+        input[6] = color.G;
+        input[7] = color.B;
+        input[8] = BacklightKles;
+        input[9] = BacklightKeyboard;
+        return input;
+    }
+
+    /// <summary><c>SetGamingRgbKb</c>: <c>máscara_zona | R &lt;&lt; 8 | G &lt;&lt; 16 | B &lt;&lt; 24</c>.</summary>
+    public static ulong EncodeSetZoneColor(int zone, RgbColor color) =>
+        ZoneBit(zone) | ((ulong)color.R << 8) | ((ulong)color.G << 16) | ((ulong)color.B << 24);
+
+    /// <summary>Saída de <c>GetGamingRgbKb(máscara)</c>: byte0 = status, bytes 1–3 = R, G, B.</summary>
+    public static RgbColor DecodeZoneColor(ulong output)
+    {
+        EnsureStatusOk(output, "GetGamingRgbKb");
+        return new RgbColor((byte)(output >> 8), (byte)(output >> 16), (byte)(output >> 24));
+    }
+
+    /// <summary>
+    /// Saída de <c>GetGamingKBBacklight(1)</c> (<c>gmOutput</c> = bytes 1..15 do buffer ACPI): <c>[0]</c> KBLE,
+    /// <c>[1]</c> KBLS, <c>[2]</c> KBBP, <c>[3] = 0xFF</c>, <c>[4]</c> KBED, <c>[5..7]</c> RGB, <c>[8]</c> KLES.
+    /// Junta com as cores e a máscara das zonas. Velocidade e direção fora da faixa (ex.: 0 no estático)
+    /// viram o padrão; efeito desconhecido vira <see cref="FirmwareException"/>.
+    /// </summary>
+    public static KeyboardLighting DecodeKeyboardLighting(byte status, byte[] backlight, ZoneColors zones, byte zoneMask)
+    {
+        ArgumentNullException.ThrowIfNull(backlight);
+        if (status != 0)
+        {
+            throw new FirmwareException($"GetGamingKBBacklight devolveu status {status}.");
+        }
+
+        if (backlight.Length < 9)
+        {
+            throw new FirmwareException($"GetGamingKBBacklight devolveu {backlight.Length} bytes (esperado 15).");
+        }
+
+        var effect = (KeyboardEffect)backlight[0];
+        if (!Enum.IsDefined(effect))
+        {
+            throw new FirmwareException($"Efeito da luz desconhecido no EC: {backlight[0]}.");
+        }
+
+        var speed = backlight[1] is >= KeyboardLighting.MinSpeed and <= KeyboardLighting.MaxSpeed ? backlight[1] : KeyboardLighting.DefaultSpeed;
+        var direction = Enum.IsDefined((LightDirection)backlight[4]) ? (LightDirection)backlight[4] : LightDirection.Right;
+        var brightness = Math.Min((int)backlight[2], KeyboardLighting.MaxBrightness);
+        return new KeyboardLighting(
+            effect,
+            brightness,
+            speed,
+            direction,
+            new RgbColor(backlight[5], backlight[6], backlight[7]),
+            zones,
+            (byte)(zoneMask & KeyboardLighting.AllZones));
+    }
+
+    /// <summary>Saída de <c>GetGamingLED(8)</c>: <c>gmOutput[4]</c> = <c>EC.KBST</c> (zonas acesas).</summary>
+    public static byte DecodeKeyboardZones(byte status, byte[] output)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        if (status != 0)
+        {
+            throw new FirmwareException($"GetGamingLED devolveu status {status}.");
+        }
+
+        return output.Length > 4
+            ? (byte)(output[4] & KeyboardLighting.AllZones)
+            : throw new FirmwareException($"GetGamingLED devolveu {output.Length} bytes (esperado 15).");
+    }
+
+    /// <summary>
+    /// Só as zonas do teclado em <c>SetGamingLED</c>: <c>[0] = 8</c>, máscara de 4 bits e o resto zerado.
+    /// <c>[0] = 1</c> (TKST, modo Turbo) e <c>0x10</c> (light bar) ficam bloqueados.
+    /// </summary>
+    public static bool IsAllowedSetLed(byte[] input) =>
+        input is { Length: LightInputLength }
+        && input[0] == LedKeyboardZones
+        && (input[5] & ~KeyboardLighting.AllZones) == 0
+        && input.Select((b, i) => i is 0 or 5 || b == 0).All(ok => ok);
+
+    /// <summary>Só o teclado (<c>[9] = 1</c>) em <c>SetGamingKBBacklight</c>, com efeito, velocidade, brilho e direção válidos.</summary>
+    public static bool IsAllowedSetBacklight(byte[] input) =>
+        input is { Length: LightInputLength }
+        && input[9] == BacklightKeyboard
+        && Enum.IsDefined((KeyboardEffect)input[0])
+        && input[1] <= KeyboardLighting.MaxSpeed
+        && input[2] <= KeyboardLighting.MaxBrightness
+        && input[3] == 0
+        && Enum.IsDefined((LightDirection)input[4])
+        && input[8] == BacklightKles
+        && input.Skip(10).All(b => b == 0);
+
+    /// <summary>Só uma zona do teclado (máscara 1, 2, 4 ou 8) em <c>SetGamingRgbKb</c>; light bar bloqueada.</summary>
+    public static bool IsAllowedSetZoneColor(ulong input) =>
+        (input & 0xFF) is 1 or 2 or 4 or 8 && input >> 32 == 0;
+
     /// <summary>Status no byte 0 (Get e Set): 0 = OK; qualquer outro valor vira <see cref="FirmwareException"/>.</summary>
     public static void EnsureStatusOk(ulong output, string method)
     {

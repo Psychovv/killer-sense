@@ -130,7 +130,11 @@ public class AcerProtocolTests
     [Fact]
     public void Allowlist_so_tem_os_metodos_esperados_e_nenhuma_classe_perigosa()
     {
-        string[] expected = ["GetGamingFanBehavior", "SetGamingFanBehavior", "GetGamingFanSpeed", "SetGamingFanSpeed", "GetGamingSysInfo", "GetGamingMiscSetting", "SetGamingMiscSetting"];
+        string[] expected =
+        [
+            "GetGamingFanBehavior", "SetGamingFanBehavior", "GetGamingFanSpeed", "SetGamingFanSpeed", "GetGamingSysInfo", "GetGamingMiscSetting", "SetGamingMiscSetting",
+            "GetGamingLED", "SetGamingLED", "GetGamingRgbKb", "SetGamingRgbKb", "GetGamingKBBacklight", "SetGamingKBBacklight",
+        ];
         Assert.Equal(expected.Order(), AcerWmiFirmware.Allowlist.Keys.Order());
         Assert.Equal("AcerGamingFunction", AcerWmiFirmware.GamingClass);
         string[] forbidden = ["BIOSSetting", "UtilityFunction", "DataTrans", "MethodForPowerShell", "AcerBiosConfigurationTool"];

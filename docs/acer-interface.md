@@ -495,8 +495,23 @@ Análise só de cópias em `re/bin`. Decompilados em `re/decomp` (não versionad
 - Cor por zona: `SetGamingRgbKb(gmInput = máscara_zona | R << 8 | G << 16 | B << 24)`, uma chamada por zona (máscaras 1, 2, 4, 8), com 30 ms entre elas. Bate com o ACPI (`KBnR/G/B`).
 - Efeito/brilho: `SetGamingKBBacklight(UInt8[])` com `[0]` efeito, `[1]` velocidade, `[2]` **brilho**, `[4]` direção, `[5..7]` RGB, `[8]` `KLES`, `[9]` alvo (1 = teclado, 2 = light bar). No estático o app manda efeito 0, velocidade 0, brilho N, `KLES = 3`, alvo 1, e depois as cores por zona.
 - **Liga/desliga por zona**: `SetGamingLED(UInt8[])` com `[0] = 8` e `[5]` = máscara das zonas acesas (bit0 = zona 1 … bit3 = zona 4). Grava `EC.KBST`. Explica as leituras anteriores: `KBST = 7` (zonas 1–3) e `0x0F` (as 4). CONFIRMADO no código + ACPI.
-- O tamanho do buffer muda conforme a versão da tabela SMBIOS tipo 172 (8, 12 ou 16 bytes).
-- Os números de cada efeito animado (onda, neon…) não estão nesta DLL. Descobrir lendo `KBLE` no teste A9.
+- O tamanho do buffer muda conforme a versão da tabela SMBIOS tipo 172 (8, 12 ou 16 bytes). O WMI declara `gmInput` como `UInt8[16]` em `SetGamingLED` e `SetGamingKBBacklight`; `GetGamingLED` e `GetGamingKBBacklight` devolvem `gmOutput` `UInt8[15]` + `gmReturn` (metadados da classe, lidos sem admin).
+- **Efeitos (CONFIRMADO no código, 2026-11-07):** a DLL monta uma lista de modos (no formato do OpenRGB) com o valor de cada efeito. Esse valor vai para `KBLE`:
+
+| Valor | Efeito | Velocidade | Direção | Cor |
+|---|---|---|---|---|
+| 0 | Estático | — | — | uma por zona (`SetGamingRgbKb`) |
+| 1 | Respiração | 1–9 | — | uma |
+| 2 | Neon | 1–9 | — | automática |
+| 3 | Onda | 1–9 | esquerda/direita | automática |
+| 4 | Deslocamento (Shifting) | 1–9 | esquerda/direita | uma |
+| 5 | Zoom | 1–9 | — | uma |
+| 6 | Meteoro | 1–9 | — | uma |
+| 7 | Cintilante (Twinkling) | 1–9 | — | uma |
+
+- Padrões da DLL: velocidade 5, brilho 50 (0–100). Os valores 8 (Ripple), 9 (Snake) e 10 (Disco) também existem na DLL, mas o PredatorSense não os oferece para o teclado de 4 zonas (lista `KB_Zone_Default`).
+- Direção: enum `EFFECT_DIRECTION` do PredatorSense, 1 = direita, 2 = esquerda. O snapshot 01 tinha `KBLE = 3` (onda), `KBLS = 5`, `KBED = 1`. Que a DLL passe esse número direto para `KBED` é SUPOSIÇÃO (teste T16).
+- No ACPI, `SetGamingKBBacklight` com `[9] = 1` grava `KLSY = 0`; com `[9]` diferente de 1 e 2, grava `KLSY = 1` e mexe no teclado do mesmo jeito. O killer-sense sempre manda 1, como a DLL.
 
 **Funções extras do PredatorSense:**
 | Função | Mecanismo (CONFIRMADO no código) |

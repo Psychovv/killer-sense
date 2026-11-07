@@ -75,6 +75,23 @@ public static class IpcProtocol
         }
     }
 
+    /// <summary>Configuração da luz em JSON legível (lighting.json).</summary>
+    public static string SerializeLighting(LightingSettingsDto settings) =>
+        JsonSerializer.Serialize(settings, IpcJsonContext.Indented.LightingSettingsDto);
+
+    /// <summary>Lê a configuração da luz; null se o JSON for inválido (a validação vem depois).</summary>
+    public static LightingSettingsDto? ParseLighting(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(json, IpcJsonContext.Default.LightingSettingsDto);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Lê uma mensagem do serviço; null se o JSON for inválido.</summary>
     public static IpcMessage? ParseMessage(string line)
     {
@@ -127,20 +144,35 @@ public enum IpcRequestType
 
     /// <summary>Valida, salva e aplica a configuração do offset da GPU (campo <c>gpuOffsets</c> obrigatório).</summary>
     SetGpuOffsets,
+
+    /// <summary>Devolve a configuração da luz e, com o controle da luz ligado, o que o teclado tem agora.</summary>
+    GetLighting,
+
+    /// <summary>Valida e salva a configuração da luz (campo <c>lighting</c>); com o controle ligado, grava no teclado e confere.</summary>
+    SetLighting,
 }
 
-public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null, bool? Enabled = null, GpuOffsetSettingsDto? GpuOffsets = null);
+public sealed record IpcRequest([property: JsonRequired] IpcRequestType Type, FanProfileDto? Profile = null, OperatingMode? Mode = null, bool? Enabled = null, GpuOffsetSettingsDto? GpuOffsets = null, LightingSettingsDto? Lighting = null);
 
 /// <summary>
 /// Mensagem do serviço: <c>state</c> (estado), <c>ack</c> (resposta a um comando) ou <c>profile</c>
 /// (resposta a <see cref="IpcRequestType.GetProfile"/>).
 /// </summary>
-public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? Ok = null, string? Error = null, FanProfileDto? Profile = null, GpuOffsetSettingsDto? GpuOffsets = null)
+public sealed record IpcMessage(
+    string Kind,
+    ServiceState? State = null,
+    bool? Ok = null,
+    string? Error = null,
+    FanProfileDto? Profile = null,
+    GpuOffsetSettingsDto? GpuOffsets = null,
+    LightingSettingsDto? Lighting = null,
+    KeyboardLightingDto? LightingCurrent = null)
 {
     public const string KindState = "state";
     public const string KindAck = "ack";
     public const string KindProfile = "profile";
     public const string KindGpuOffsets = "gpuOffsets";
+    public const string KindLighting = "lighting";
 
     public static IpcMessage ForState(ServiceState state) => new(KindState, State: state);
 
@@ -149,6 +181,11 @@ public sealed record IpcMessage(string Kind, ServiceState? State = null, bool? O
     public static IpcMessage ForProfile(FanProfileDto profile) => new(KindProfile, Ok: true, Profile: profile);
 
     public static IpcMessage ForGpuOffsets(GpuOffsetSettingsDto settings) => new(KindGpuOffsets, Ok: true, GpuOffsets: settings);
+
+    /// <param name="current">O que o teclado tem agora; null = controle da luz desligado ou leitura falhou.</param>
+    /// <param name="readError">Erro da leitura do teclado, se houver (a configuração vem mesmo assim).</param>
+    public static IpcMessage ForLighting(LightingSettingsDto settings, KeyboardLightingDto? current, string? readError = null) =>
+        new(KindLighting, Ok: true, Error: readError, Lighting: settings, LightingCurrent: current);
 }
 
 /// <summary>Estado publicado pelo serviço a cada ciclo.</summary>
@@ -207,6 +244,7 @@ public sealed record ServiceState(
 [JsonSerializable(typeof(IpcMessage))]
 [JsonSerializable(typeof(FanProfileDto))]
 [JsonSerializable(typeof(GpuOffsetSettingsDto))]
+[JsonSerializable(typeof(LightingSettingsDto))]
 internal sealed partial class IpcJsonContext : JsonSerializerContext
 {
     private static IpcJsonContext? s_indented;

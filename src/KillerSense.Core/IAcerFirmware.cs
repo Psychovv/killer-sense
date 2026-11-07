@@ -56,4 +56,16 @@ public interface IAcerFirmware
 
     /// <summary>Liga/desliga o limite de carga (~80%): <c>SetBatteryHealthControl(1, 1, on)</c>. Só a máscara 1.</summary>
     void SetBatteryChargeLimit(bool enabled);
+
+    /// <summary>
+    /// Luz do teclado como está no EC: <c>GetGamingKBBacklight(1)</c>, <c>GetGamingRgbKb</c> das 4 zonas e
+    /// <c>GetGamingLED(8)</c>. Só leituras do EC, sem SMI.
+    /// </summary>
+    KeyboardLighting GetKeyboardLighting();
+
+    /// <summary>
+    /// Grava a luz do teclado como o PredatorSense faz: zonas acesas (<c>SetGamingLED</c>), efeito e brilho
+    /// (<c>SetGamingKBBacklight</c>, só o teclado) e, no estático, a cor de cada zona (<c>SetGamingRgbKb</c>).
+    /// </summary>
+    void SetKeyboardLighting(KeyboardLighting lighting);
 }

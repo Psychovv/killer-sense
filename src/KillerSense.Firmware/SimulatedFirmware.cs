@@ -80,6 +80,55 @@ public sealed class SimulatedFirmware : IAcerFirmware
 
     public void SetBatteryChargeLimit(bool enabled) => Record($"SetBatteryChargeLimit({enabled})", () => ChargeLimitOn = enabled);
 
+    /// <summary>
+    /// Luz simulada como o EC guardaria: começa como no snapshot 01 (onda, zona 1 em ciano). Zonas apagadas
+    /// ficam pretas, como o killer-sense grava.
+    /// </summary>
+    public KeyboardLighting Lighting { get; set; } = new(
+        KeyboardEffect.Wave, 100, 5, LightDirection.Right, RgbColor.Black,
+        new ZoneColors(KeyboardLighting.AcerCyan, RgbColor.Black, RgbColor.Black, RgbColor.Black), 0x07);
+
+    /// <summary>Se verdadeiro, a escrita "dá certo" mas o EC fica como estava.</summary>
+    public bool IgnoreLightingWrites { get; set; }
+
+    public KeyboardLighting GetKeyboardLighting() => Record("GetKeyboardLighting", () => Lighting);
+
+    public void SetKeyboardLighting(KeyboardLighting lighting)
+    {
+        ArgumentNullException.ThrowIfNull(lighting);
+        var backlight = AcerProtocol.EncodeSetKeyboardBacklight(lighting); // mesma validação do real
+        Record($"SetKeyboardLighting({Convert.ToHexString(backlight, 0, 10)})", () =>
+        {
+            if (IgnoreLightingWrites)
+            {
+                return 0;
+            }
+
+            var zones = lighting.Zones;
+            if (lighting.Effect == KeyboardEffect.Static)
+            {
+                for (var z = 0; z < ZoneColors.Count; z++)
+                {
+                    zones = zones.With(z, lighting.IsZoneOn(z) ? lighting.Zones[z] : RgbColor.Black);
+                }
+            }
+            else
+            {
+                zones = Lighting.Zones; // os animados não mexem nas cores das zonas
+            }
+
+            Lighting = lighting with
+            {
+                Speed = KeyboardLighting.UsesSpeed(lighting.Effect) ? lighting.Speed : KeyboardLighting.DefaultSpeed,
+                Color = KeyboardLighting.UsesColor(lighting.Effect) ? lighting.Color : RgbColor.Black,
+                Direction = KeyboardLighting.UsesDirection(lighting.Effect) ? lighting.Direction : LightDirection.Right,
+                Zones = zones,
+                ZonesOn = lighting.ZoneMask,
+            };
+            return 0;
+        });
+    }
+
     private int Rpm(Fan fan) => _modes[fan] switch
     {
         FanMode.Max => 6976,

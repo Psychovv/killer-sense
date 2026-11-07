@@ -26,7 +26,17 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
         ["GetGamingSysInfo"] = CimType.UInt32,
         ["GetGamingMiscSetting"] = CimType.UInt32,
         ["SetGamingMiscSetting"] = CimType.UInt64, // só o modo (0x0B): ver AcerProtocol.IsAllowedMiscSetting
+        // Luz do teclado. Get: leitura pura do EC. Set: só as zonas/efeito/cor do teclado (AcerProtocol.IsAllowed*).
+        ["GetGamingLED"] = CimType.UInt32,
+        ["SetGamingLED"] = CimType.UInt8Array,
+        ["GetGamingRgbKb"] = CimType.UInt32,
+        ["SetGamingRgbKb"] = CimType.UInt64,
+        ["GetGamingKBBacklight"] = CimType.UInt32,
+        ["SetGamingKBBacklight"] = CimType.UInt8Array,
     };
+
+    /// <summary>Pausa entre as cores das zonas, como a DLL da Acer (30 ms).</summary>
+    private static readonly TimeSpan ZoneColorPause = TimeSpan.FromMilliseconds(30);
 
     internal const string BatteryClass = "BatteryControl";
 
@@ -128,6 +138,39 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
         });
     }
 
+    public KeyboardLighting GetKeyboardLighting()
+    {
+        var (ledStatus, led) = InvokeForBytes("GetGamingLED", AcerProtocol.LedKeyboardZones);
+        var mask = AcerProtocol.DecodeKeyboardZones(ledStatus, led);
+        var zones = default(ZoneColors);
+        for (var z = 0; z < ZoneColors.Count; z++)
+        {
+            zones = zones.With(z, AcerProtocol.DecodeZoneColor(Invoke("GetGamingRgbKb", AcerProtocol.ZoneBit(z))));
+        }
+
+        var (status, backlight) = InvokeForBytes("GetGamingKBBacklight", AcerProtocol.BacklightKeyboard);
+        return AcerProtocol.DecodeKeyboardLighting(status, backlight, zones, mask);
+    }
+
+    public void SetKeyboardLighting(KeyboardLighting lighting)
+    {
+        ArgumentNullException.ThrowIfNull(lighting);
+        var backlight = AcerProtocol.EncodeSetKeyboardBacklight(lighting); // valida antes da primeira escrita
+        AcerProtocol.EnsureStatusOk(InvokeWithBytes("SetGamingLED", AcerProtocol.EncodeSetKeyboardZones(lighting.ZoneMask)), "SetGamingLED");
+        AcerProtocol.EnsureStatusOk(InvokeWithBytes("SetGamingKBBacklight", backlight), "SetGamingKBBacklight");
+        if (lighting.Effect != KeyboardEffect.Static)
+        {
+            return;
+        }
+
+        for (var z = 0; z < ZoneColors.Count; z++)
+        {
+            Thread.Sleep(ZoneColorPause);
+            var color = lighting.IsZoneOn(z) ? lighting.Zones[z] : RgbColor.Black; // zona apagada também fica preta
+            AcerProtocol.EnsureStatusOk(Invoke("SetGamingRgbKb", AcerProtocol.EncodeSetZoneColor(z, color)), "SetGamingRgbKb");
+        }
+    }
+
     /// <summary>Chamada a <see cref="BatteryClass"/>: só métodos da lista; o Set só com a máscara do limite de carga.</summary>
     private T InvokeBattery<T>(string method, CimMethodParametersCollection parameters, Func<CimReadOnlyKeyedCollection<CimMethodParameter>, T> read)
     {
@@ -167,9 +210,10 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
     /// <summary>Uma chamada WMI por vez, com timeout. Verifica a lista de permissão antes de tudo.</summary>
     internal ulong Invoke(string method, ulong input)
     {
-        if (!Allowlist.TryGetValue(method, out var inputType))
+        var inputType = AllowedInputType(method);
+        if (inputType is not (CimType.UInt32 or CimType.UInt64))
         {
-            throw new InvalidOperationException($"Método fora da lista de permissão: {method}.");
+            throw new InvalidOperationException($"{method} não recebe número.");
         }
 
         if (method == "SetGamingMiscSetting" && !AcerProtocol.IsAllowedMiscSetting(input))
@@ -177,11 +221,72 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
             throw new InvalidOperationException($"SetGamingMiscSetting só é permitido para o modo (0x0B); entrada 0x{input:X} recusada.");
         }
 
+        if (method == "SetGamingRgbKb" && !AcerProtocol.IsAllowedSetZoneColor(input))
+        {
+            throw new InvalidOperationException($"SetGamingRgbKb só é permitido para uma zona do teclado; entrada 0x{input:X} recusada.");
+        }
+
         if (inputType == CimType.UInt32 && input > uint.MaxValue)
         {
             throw new ArgumentOutOfRangeException(nameof(input), $"{method} aceita só UInt32.");
         }
 
+        return InvokeCore(method, inputType == CimType.UInt32 ? (uint)input : input, inputType, outs => ReadUInt64(method, outs));
+    }
+
+    /// <summary>Set com entrada <c>UInt8[16]</c> (<c>SetGamingLED</c>, <c>SetGamingKBBacklight</c>), já restrita ao teclado.</summary>
+    internal ulong InvokeWithBytes(string method, byte[] input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (AllowedInputType(method) != CimType.UInt8Array)
+        {
+            throw new InvalidOperationException($"{method} não recebe UInt8[].");
+        }
+
+        var allowed = method switch
+        {
+            "SetGamingLED" => AcerProtocol.IsAllowedSetLed(input),
+            "SetGamingKBBacklight" => AcerProtocol.IsAllowedSetBacklight(input),
+            _ => false,
+        };
+        if (!allowed)
+        {
+            throw new InvalidOperationException($"{method}: entrada {Convert.ToHexString(input)} fora do permitido (só a luz do teclado).");
+        }
+
+        return InvokeCore(method, input.Clone(), CimType.UInt8Array, outs => ReadUInt64(method, outs));
+    }
+
+    /// <summary>Get com saída <c>UInt8[15]</c> + <c>gmReturn</c> (<c>GetGamingLED</c>, <c>GetGamingKBBacklight</c>).</summary>
+    internal (byte Status, byte[] Output) InvokeForBytes(string method, uint input)
+    {
+        if (AllowedInputType(method) != CimType.UInt32 || !method.StartsWith("Get", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"{method} não é uma leitura com entrada UInt32.");
+        }
+
+        return InvokeCore(method, input, CimType.UInt32, outs =>
+        {
+            var bytes = outs["gmOutput"]?.Value as byte[] ?? throw new FirmwareException($"{method} não devolveu gmOutput.");
+            var status = Convert.ToByte(outs["gmReturn"]?.Value ?? 0, System.Globalization.CultureInfo.InvariantCulture);
+            return (status, bytes);
+        });
+    }
+
+    private static CimType AllowedInputType(string method) =>
+        Allowlist.TryGetValue(method, out var type)
+            ? type
+            : throw new InvalidOperationException($"Método fora da lista de permissão: {method}.");
+
+    private static ulong ReadUInt64(string method, CimReadOnlyKeyedCollection<CimMethodParameter> outs)
+    {
+        var value = outs["gmOutput"]?.Value ?? throw new FirmwareException($"{method} não devolveu gmOutput.");
+        return Convert.ToUInt64(value, System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>A chamada em si: uma por vez, com timeout; erro do WMI descarta a instância em cache.</summary>
+    private T InvokeCore<T>(string method, object input, CimType inputType, Func<CimReadOnlyKeyedCollection<CimMethodParameter>, T> read)
+    {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -190,16 +295,10 @@ public sealed class AcerWmiFirmware : IAcerFirmware, IDisposable
                 _instance ??= _session.QueryInstances(Namespace, "WQL", $"SELECT * FROM {GamingClass}", _options).Single();
                 using var parameters = new CimMethodParametersCollection
                 {
-                    CimMethodParameter.Create(
-                        "gmInput",
-                        inputType == CimType.UInt32 ? (object)(uint)input : input,
-                        inputType,
-                        CimFlags.In),
+                    CimMethodParameter.Create("gmInput", input, inputType, CimFlags.In),
                 };
                 using var result = _session.InvokeMethod(Namespace, _instance, method, parameters, _options);
-                var value = result.OutParameters["gmOutput"]?.Value
-                    ?? throw new FirmwareException($"{method} não devolveu gmOutput.");
-                return Convert.ToUInt64(value, System.Globalization.CultureInfo.InvariantCulture);
+                return read(result.OutParameters);
             }
             catch (CimException ex)
             {

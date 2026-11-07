@@ -42,6 +42,18 @@ ControlStateStore? control = testEntry is not null ? null
     : new ControlStateStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "control-disabled.simulated") : ControlStateStore.DefaultPath);
 GpuOffsetStore? gpuOffsetStore = testEntry is not null ? null
     : new GpuOffsetStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "gpu-offsets.simulated.json") : GpuOffsetStore.DefaultPath);
+LightingStore? lightingStore = testEntry is not null ? null
+    : new LightingStore(simulated ? Path.Combine(Path.GetTempPath(), "KillerSense", "lighting.simulated.json") : LightingStore.DefaultPath);
+var lightingSettings = LightingSettings.Default;
+if (lightingStore is not null)
+{
+    lightingSettings = lightingStore.Load(out var lightingProblem);
+    if (lightingProblem is not null)
+    {
+        fileLogger.Warning("Configuração da luz ignorada, usando o padrão (controle desligado): {Problem}", lightingProblem);
+    }
+}
+
 var profile = FanProfile.Default;
 if (store is not null)
 {
@@ -63,6 +75,7 @@ if (testEntry is { } entry)
 
 builder.Services.AddSingleton(sp => new FanControlEngine(sp.GetRequiredService<IAcerFirmware>(), profile));
 builder.Services.AddSingleton(sp => new ChargeLimitMonitor(sp.GetRequiredService<IAcerFirmware>()));
+builder.Services.AddSingleton(sp => new LightingController(sp.GetRequiredService<IAcerFirmware>(), lightingSettings));
 builder.Services.AddSingleton(sp => new FanControlWorker(
     sp.GetRequiredService<FanControlEngine>(),
     sp.GetRequiredService<ChargeLimitMonitor>(),
@@ -73,6 +86,8 @@ builder.Services.AddSingleton(sp => new FanControlWorker(
     store,
     control,
     gpuOffsetStore,
+    sp.GetRequiredService<LightingController>(),
+    lightingStore,
     sp.GetRequiredService<ILogger<FanControlWorker>>()));
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FanControlWorker>());
 if (WindowsServiceHelpers.IsWindowsService())

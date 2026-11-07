@@ -29,6 +29,8 @@ public sealed partial class FanControlWorker : BackgroundService
     private readonly ChargeLimitMonitor _chargeLimit;
     private readonly GpuOffsetController _gpuOffsets;
     private readonly GpuOffsetStore? _gpuOffsetStore;
+    private readonly LightingController _lighting;
+    private readonly LightingStore? _lightingStore;
     private bool _suspended;
     private (EngineState State, FanMode Cpu, FanMode Gpu)? _lastLogged;
     private bool? _lastLoggedChargeLimit;
@@ -37,9 +39,14 @@ public sealed partial class FanControlWorker : BackgroundService
     /// <param name="control">Onde fica a escolha "Encerrar"; null = não persistir.</param>
     /// <param name="gpuOffsets">Quem lê e grava o offset de clock da GPU (NVAPI ou simulado).</param>
     /// <param name="gpuOffsetStore">Onde fica a configuração do offset; null = só o padrão (desligado), sem salvar.</param>
-    public FanControlWorker(FanControlEngine engine, ChargeLimitMonitor chargeLimit, IGpuSensor gpu, IGpuClockOffsets gpuOffsets, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, GpuOffsetStore? gpuOffsetStore, ILogger<FanControlWorker> log)
+    /// <param name="lighting">Luz do teclado (já com a configuração salva).</param>
+    /// <param name="lightingStore">Onde fica a configuração da luz; null = não salvar.</param>
+    public FanControlWorker(FanControlEngine engine, ChargeLimitMonitor chargeLimit, IGpuSensor gpu, IGpuClockOffsets gpuOffsets, HeartbeatOptions heartbeat, IpcOptions ipc, ProfileStore? store, ControlStateStore? control, GpuOffsetStore? gpuOffsetStore, LightingController lighting, LightingStore? lightingStore, ILogger<FanControlWorker> log)
     {
         ArgumentNullException.ThrowIfNull(gpuOffsets);
+        ArgumentNullException.ThrowIfNull(lighting);
+        _lighting = lighting;
+        _lightingStore = lightingStore;
         _gpuOffsetStore = gpuOffsetStore;
         var offsetSettings = GpuOffsetSettings.Default;
         if (gpuOffsetStore is not null)
@@ -66,6 +73,7 @@ public sealed partial class FanControlWorker : BackgroundService
     private Task<IpcMessage> HandleRequestAsync(IpcRequest request)
     {
         var type = request.Type;
+        var reapplyLighting = false;
         try
         {
             lock (_gate)
@@ -89,6 +97,7 @@ public sealed partial class FanControlWorker : BackgroundService
                         _control?.SetDisabled(false);
                         _engine.RestoreAuto();
                         _engine.Resume();
+                        reapplyLighting = true;
                         break;
                     case IpcRequestType.SetOperatingMode:
                         if (request.Mode is not { } mode || !Enum.IsDefined(mode))
@@ -141,12 +150,38 @@ public sealed partial class FanControlWorker : BackgroundService
                         var turbo = offsets.For(OperatingMode.Turbo);
                         LogGpuOffsetSaved(_log, offsets.Enabled, turbo);
                         break;
+                    case IpcRequestType.GetLighting:
+                        return Task.FromResult(GetLighting());
+                    case IpcRequestType.SetLighting:
+                        string? lightingError = "Configuração da luz ausente.";
+                        if (request.Lighting?.TryToSettings(out lightingError) is not { } lighting)
+                        {
+                            lightingError ??= "Configuração da luz inválida.";
+                            LogLightingRejected(_log, lightingError);
+                            return Task.FromResult(IpcMessage.Ack(false, lightingError));
+                        }
+
+                        _lightingStore?.Save(lighting); // grava antes de aplicar
+                        LogLightingSaved(_log, lighting.Enabled, lighting.Lighting);
+                        if (lighting.Enabled && !LightingAllowed)
+                        {
+                            _lighting.SetSettings(lighting, allowed: false);
+                            return Task.FromResult(IpcMessage.Ack(true, "Configuração salva. O killer-sense está desativado; a luz será gravada quando ele voltar."));
+                        }
+
+                        _lighting.SetSettings(lighting, allowed: true);
+                        break;
                     default:
                         return Task.FromResult(IpcMessage.Ack(false, "Comando não suportado."));
                 }
             }
 
             LogCommand(_log, type);
+            if (reapplyLighting)
+            {
+                ApplyLightingIfEnabled("killer-sense reativado");
+            }
+
             return Task.FromResult(IpcMessage.Ack(true));
         }
         catch (FirmwareException ex)
@@ -162,7 +197,45 @@ public sealed partial class FanControlWorker : BackgroundService
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             LogCommandFailed(_log, ex, type);
-            return Task.FromResult(IpcMessage.Ack(false, $"Não foi possível salvar o perfil: {ex.Message}"));
+            return Task.FromResult(IpcMessage.Ack(false, $"Não foi possível salvar a configuração: {ex.Message}"));
+        }
+    }
+
+    /// <summary>Luz só com o killer-sense ativo e fora da suspensão (chamar sob <see cref="_gate"/>).</summary>
+    private bool LightingAllowed => !_engine.IsDisabled && !_suspended;
+
+    /// <summary>Configuração da luz e, com o controle ligado, a leitura do teclado (chamar sob <see cref="_gate"/>).</summary>
+    private IpcMessage GetLighting()
+    {
+        var settings = LightingSettingsDto.From(_lighting.Settings);
+        try
+        {
+            var current = _lighting.ReadCurrent(LightingAllowed);
+            return IpcMessage.ForLighting(settings, current is null ? null : KeyboardLightingDto.From(current));
+        }
+        catch (FirmwareException ex)
+        {
+            LogLightingReadFailed(_log, ex);
+            return IpcMessage.ForLighting(settings, null, $"Não foi possível ler a luz do teclado: {ex.Message}");
+        }
+    }
+
+    /// <summary>Grava a luz salva, se o controle da luz estiver ligado (início do serviço e ao reativar).</summary>
+    private void ApplyLightingIfEnabled(string reason)
+    {
+        try
+        {
+            lock (_gate)
+            {
+                if (_lighting.ApplyIfEnabled(LightingAllowed))
+                {
+                    LogLightingApplied(_log, reason, _lighting.Settings.Lighting);
+                }
+            }
+        }
+        catch (FirmwareException ex)
+        {
+            LogLightingApplyFailed(_log, ex, reason);
         }
     }
 
@@ -214,6 +287,7 @@ public sealed partial class FanControlWorker : BackgroundService
             Guarded("início desativado", () => _engine.Disable("killer-sense encerrado pelo usuário: fans no Auto do EC, PredatorSense no controle."));
         }
         LogStarted(_log);
+        ApplyLightingIfEnabled("início do serviço");
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         var sw = Stopwatch.StartNew();
@@ -306,6 +380,21 @@ public sealed partial class FanControlWorker : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "FALHA ao zerar o offset da GPU ({Reason}).")]
     private static partial void LogGpuOffsetFailed(ILogger logger, Exception ex, string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Configuração da luz recusada: {Reason}")]
+    private static partial void LogLightingRejected(ILogger logger, string reason);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Configuração da luz salva: controle ligado={Enabled}, {Lighting}.")]
+    private static partial void LogLightingSaved(ILogger logger, bool enabled, KeyboardLighting lighting);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Luz do teclado gravada ({Reason}): {Lighting}.")]
+    private static partial void LogLightingApplied(ILogger logger, string reason, KeyboardLighting lighting);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Falha ao gravar a luz do teclado ({Reason}).")]
+    private static partial void LogLightingApplyFailed(ILogger logger, Exception ex, string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Falha ao ler a luz do teclado.")]
+    private static partial void LogLightingReadFailed(ILogger logger, Exception ex);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Modo de operação trocado pela interface: {Mode}.")]
     private static partial void LogModeSet(ILogger logger, OperatingMode mode);
